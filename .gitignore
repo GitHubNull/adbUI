@@ -1,0 +1,49 @@
+# ==================== 临时文件（统一放入 tmp/ 目录，一律不追踪） ====================
+tmp/
+*.tmp
+*.bak
+*~
+*.swp
+*.swo
+
+# ==================== 依赖与构建产物 ====================
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# ==================== 日志 ====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==================== 构建/编译缓存 ====================
+.vite/
+*.tsbuildinfo
+.eslintcache
+.prettiercache
+*.pyc
+
+# ==================== Rust / Tauri 产物（src-tauri/.gitignore 亦有同名规则） ====================
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# ==================== 编辑器 / IDE ====================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.code-workspace
+
+# ==================== 操作系统 ====================
+.DS_Store
+Thumbs.db
+desktop.ini

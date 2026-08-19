@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ADB UI - Android 应用管理工具</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/advanced.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-logo">A</div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-item active" data-view="apps">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span class="tooltip">应用管理</span>
+        </div>
+        <div class="sidebar-item" data-view="files">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="tooltip">文件管理</span>
+        </div>
+        <div class="sidebar-item" data-view="logs">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <span class="tooltip">日志查看</span>
+        </div>
+        <div class="sidebar-item" data-view="shell">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
+          </svg>
+          <span class="tooltip">Shell 终端</span>
+        </div>
+        <div class="sidebar-item" data-view="screenshots">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span class="tooltip">截图录屏</span>
+        </div>
+        <div class="sidebar-item" data-view="perf">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <span class="tooltip">性能监控</span>
+        </div>
+        <div class="sidebar-item" data-view="history">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+          </svg>
+          <span class="tooltip">命令历史</span>
+        </div>
+        <div class="sidebar-item" data-view="tasks">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          <span class="tooltip">任务中心</span>
+        </div>
+        <div class="sidebar-item" data-view="device-info">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+          <span class="tooltip">设备信息</span>
+        </div>
+        <div class="sidebar-item" data-view="display">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+          <span class="tooltip">显示调节</span>
+        </div>
+        <div class="sidebar-item" data-view="battery">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="6" width="18" height="12" rx="2" ry="2"/>
+            <line x1="23" y1="10" x2="23" y2="14"/>
+          </svg>
+          <span class="tooltip">电池模拟</span>
+        </div>
+        <div class="sidebar-item" data-view="device-control">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2" ry="2"/>
+            <path d="M6 12h4m-2-2v4"/>
+            <circle cx="16" cy="11" r="0.5"/>
+            <circle cx="18" cy="13" r="0.5"/>
+          </svg>
+          <span class="tooltip">设备控制</span>
+        </div>
+        <div class="sidebar-item" data-view="scripts">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span class="tooltip">自动化脚本</span>
+        </div>
+        <div class="sidebar-item" data-view="command-lib">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span class="tooltip">常用命令库</span>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="sidebar-item" data-view="settings">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span class="tooltip">设置</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Status Bar -->
+      <div class="status-bar" id="status-bar"></div>
+
+      <!-- Content Header -->
+      <header class="content-header">
+        <div class="content-header-left">
+          <h1 class="page-title" id="page-title">应用管理</h1>
+          <span class="page-subtitle" id="page-subtitle">查看和管理设备上安装的应用</span>
+        </div>
+        <div class="content-header-right">
+          <div class="input-group search-box">
+            <svg class="input-icon" width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+            <input type="text" class="input-field" id="app-search" placeholder="搜索应用名称或包名...">
+          </div>
+          <button class="btn btn-icon btn-ghost" id="btn-refresh" title="刷新">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+          </button>
+          <button class="btn btn-primary" id="btn-install">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+            </svg>
+            安装 APK
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Body -->
+      <main class="content-body" id="content-body"></main>
+    </div>
+  </div>
+
+  <!-- Detail Panel Overlay -->
+  <div class="detail-panel-overlay" id="detail-panel-overlay"></div>
+
+  <!-- Detail Panel -->
+  <aside class="detail-panel" id="detail-panel">
+    <div class="detail-panel-header" id="detail-panel-header"></div>
+    <div class="detail-panel-body" id="detail-panel-body"></div>
+    <div class="detail-panel-footer" id="detail-panel-footer"></div>
+  </aside>
+
+  <!-- Modal Overlay -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header" id="modal-header">
+        <h3 style="font-size: var(--font-size-lg); font-weight: var(--font-weight-bold)">操作确认</h3>
+        <button class="close-btn" onclick="closeModal()">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+        </button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/adb.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
