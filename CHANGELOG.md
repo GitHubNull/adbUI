@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-08-21
+
+### Added
+
+- 新增显示设置模块：`DisplaySettings` 视图 + `useDisplay` 组合式函数 + 后端 `get_display_state` / `set_display` / `reset_display` 命令，支持分辨率、密度、过扫描的查看与修改，设置失败时自动回滚原值
+- 新增电池模拟模块：`BatterySimulator` 视图 + `useBattery` 组合式函数 + 后端 `get_battery_state` / `battery_simulate` / `battery_reset` 命令，支持电量、温度、充电状态模拟与恢复真实电池
+- 新增设备控制模块：`DeviceControl` 视图 + `useControl` 组合式函数 + 后端 `reboot_device` / `send_input` 命令，支持重启（normal/recovery/bootloader）与输入模拟（tap/swipe/keyevent/text）
+- 新增脚本自动化模块：`ScriptAutomation` 视图 + `useScripts` 组合式函数 + 后端 `execute_script` 命令，支持多行 ADB 命令脚本流式执行、行号级错误定位、进度上报与中途停止
+- 新增命令库模块：`CommandLibrary` 视图 + `useCommandLib` 组合式函数，支持常用 ADB 命令收藏与一键执行
+- 新增设备信息报告模块：`DeviceInfoReport` 视图 + `useDeviceReport` 组合式函数 + 后端 `get_device_report` 命令，聚合 getprop 与 dumpsys 输出展示设备完整信息
+- 新增设置模块：`Settings` 视图 + `useSettings` 组合式函数 + 后端 `set_system_param` 命令，支持系统参数读写
+- 后端 `adb.rs` 新增 M2 玩机核心输出解析与命令构造纯函数（`parse_wm_size` / `parse_wm_density` / `parse_overscan` / `parse_battery` 等），便于单元测试
+- 前端注册 `InputNumber`、`Slider`、`Dropdown` PrimeVue 组件
+
 ## [0.3.1] - 2026-08-21
 
 ### Fixed

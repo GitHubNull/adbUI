@@ -5,6 +5,13 @@ import DeviceManager from './views/DeviceManager.vue';
 import AppManager from './views/AppManager.vue';
 import FileManager from './views/FileManager.vue';
 import TaskCenter from './views/TaskCenter.vue';
+import DisplaySettings from './views/DisplaySettings.vue';
+import BatterySimulator from './views/BatterySimulator.vue';
+import DeviceControl from './views/DeviceControl.vue';
+import ScriptAutomation from './views/ScriptAutomation.vue';
+import CommandLibrary from './views/CommandLibrary.vue';
+import DeviceInfoReport from './views/DeviceInfoReport.vue';
+import Settings from './views/Settings.vue';
 import { useDevices } from './composables/useDevices';
 import { useToast } from 'primevue/usetoast';
 
@@ -63,6 +70,47 @@ function showToast(message: string, severity: string) {
 
       <TaskCenter
         v-else-if="currentView === 'tasks'"
+      />
+
+      <DisplaySettings
+        v-else-if="currentView === 'display'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <BatterySimulator
+        v-else-if="currentView === 'battery'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <DeviceControl
+        v-else-if="currentView === 'device-control'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <ScriptAutomation
+        v-else-if="currentView === 'scripts'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <CommandLibrary
+        v-else-if="currentView === 'command-lib'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <DeviceInfoReport
+        v-else-if="currentView === 'device-info'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <Settings
+        v-else-if="currentView === 'settings'"
+        @toast="showToast"
       />
 
       <div v-else class="placeholder-view">
