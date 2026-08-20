@@ -5,6 +5,24 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.1] - 2026-08-21
+
+### Fixed
+
+- 修复 `adb_client` 未返回 exit code（shell v1 协议）时命令执行与批量卸载被误判为失败的问题，改为以 stdout/stderr 内容判断结果
+- 修复 `list_apps` 系统应用判断错误：改用 `pkgFlags` 解析（兼容字符串标志与位掩码格式），不再依赖 apk 路径判断
+- 修复包名路径含 `==` 时包名解析错误（统一从最后一个 `=` 后截取）
+- 修复应用筛选快速切换时旧请求覆盖新结果的问题（请求序号竞态保护），类型过滤改为前端本地即时过滤
+
+### Changed
+
+- 批量卸载任务完成后通过 `task-progress` 事件自动刷新应用列表
+- 应用表格增加加载态；版本列优先显示 `versionCode`
+
+### Added
+
+- 后端新增包名解析、pkgFlags 解析、exit code 处理的单元测试
+
 ## [0.3.0] - 2026-08-20
 
 ### Added

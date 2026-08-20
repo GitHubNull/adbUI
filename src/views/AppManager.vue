@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import type { DeviceInfo, AppInfo } from '../types/device';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import type { DeviceInfo, AppInfo, TaskInfo } from '../types/device';
 import { useApps } from '../composables/useApps';
 
 const props = defineProps<{
@@ -33,9 +34,48 @@ const confirmAction = ref('');
 const confirmTarget = ref<AppInfo | null>(null);
 const confirmMessage = ref('');
 
-// 过滤后的应用列表
+// 记录正在进行的批量卸载任务 ID，用于监听完成事件后刷新列表
+const pendingBatchTaskId = ref<string | null>(null);
+let taskUnlisten: UnlistenFn | null = null;
+
+// ============================================
+// 批量卸载完成监听
+// ============================================
+
+async function setupTaskListener() {
+  if (taskUnlisten) return;
+  try {
+    taskUnlisten = await listen<TaskInfo>('task-progress', (event) => {
+      const task = event.payload;
+      // 只处理我们发起的批量卸载任务
+      if (task.id === pendingBatchTaskId.value && task.status === 'Completed') {
+        pendingBatchTaskId.value = null;
+        if (props.selectedDevice) {
+          fetchApps(props.selectedDevice.id, currentFilter.value);
+        }
+        emit('toast', '批量卸载完成，列表已刷新', 'success');
+      }
+    });
+  } catch (err) {
+    console.error('Failed to listen task progress:', err);
+  }
+}
+
+function teardownTaskListener() {
+  if (taskUnlisten) {
+    taskUnlisten();
+    taskUnlisten = null;
+  }
+}
+
+// 过滤后的应用列表（本地过滤，切换筛选即时生效且与类型标签一致）
 const filteredApps = computed(() => {
   let result = apps.value;
+  if (currentFilter.value === 'user') {
+    result = result.filter((a) => !a.is_system);
+  } else if (currentFilter.value === 'system') {
+    result = result.filter((a) => a.is_system);
+  }
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
     result = result.filter(
@@ -60,12 +100,20 @@ watch(
   { immediate: true }
 );
 
+// 生命周期：挂载时注册任务监听，卸载时清理
+onMounted(() => {
+  setupTaskListener();
+});
+
+onUnmounted(() => {
+  teardownTaskListener();
+});
+
 function onFilterChange(event: any) {
   const filter = event.value as string;
   currentFilter.value = filter as any;
-  if (props.selectedDevice) {
-    fetchApps(props.selectedDevice.id, currentFilter.value);
-  }
+  // 类型过滤为本地即时过滤，无需重新请求后端
+  selectedApps.value = [];
 }
 
 function getAppTypeSeverity(app: AppInfo): string {
@@ -190,7 +238,8 @@ async function onBatchUninstall() {
   if (!props.selectedDevice || selectedApps.value.length === 0) return;
   const packages = selectedApps.value.map((a) => a.package_name);
   try {
-    await batchUninstall(props.selectedDevice.id, packages);
+    const taskId = await batchUninstall(props.selectedDevice.id, packages);
+    pendingBatchTaskId.value = taskId;
     emit('toast', '批量卸载任务已启动', 'info');
     selectedApps.value = [];
   } catch (err) {
@@ -249,6 +298,7 @@ async function onBatchUninstall() {
         v-model:selection="selectedApps"
         data-key="package_name"
         striped-rows
+        :loading="loading"
         class="app-table"
       >
         <Column selection-mode="multiple" style="width: 40px" />
@@ -272,7 +322,11 @@ async function onBatchUninstall() {
           </template>
         </Column>
 
-        <Column field="version_name" header="版本" style="width: 120px" />
+        <Column header="版本" style="width: 120px">
+          <template #body="{ data }">
+            <span>{{ data.version_code || data.version_name || '—' }}</span>
+          </template>
+        </Column>
 
         <Column field="status" header="状态" style="width: 100px">
           <template #body="{ data }">

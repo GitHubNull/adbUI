@@ -2,6 +2,7 @@ use adb_client::ADBDeviceExt;
 use adb_client::server::{ADBServer, DeviceState};
 use adb_client::server_device::ADBServerDevice;
 use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::path::Path;
 use tauri::{AppHandle, State};
@@ -92,6 +93,13 @@ fn execute_shell_command(
     let stderr = String::from_utf8_lossy(&stderr_buffer.into_inner()).to_string();
 
     Ok((stdout, stderr, exit_code))
+}
+
+/// 将 adb_client 的 Option<u8> exit code 转为 i32
+/// None 表示 adb server 未返回 exit code（shell v1 协议），此时按 0 处理，
+/// 由调用方根据 stdout/stderr 内容判断成功失败
+fn exit_code_or_default(exit_code: Option<u8>) -> i32 {
+    exit_code.map(|c| c as i32).unwrap_or(0)
 }
 
 // ============================================
@@ -216,7 +224,7 @@ pub async fn execute_adb(
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -288,8 +296,75 @@ fn parse_package_list(output: &str) -> Vec<(String, String)> {
     packages
 }
 
+/// 解析 pm list packages（无 -f）输出，返回包名列表
+fn parse_package_names(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| l.starts_with("package:"))
+        .map(|l| l[8..].trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// 解析 pm list packages --show-versioncode 输出行，返回 (包名, versionCode)
+/// 兼容两种格式（注意路径中可能含 ==，必须用 rfind）：
+///   package:com.android.chrome versionCode:609923000
+///   package:/data/app/~~xxx==/base.apk=com.android.chrome versionCode:609923000
+fn parse_version_line(line: &str) -> Option<(String, String)> {
+    let line = line.trim();
+    if !line.starts_with("package:") {
+        return None;
+    }
+    let rest = &line[8..];
+    let pkg = if let Some(eq_pos) = rest.rfind('=') {
+        rest[eq_pos + 1..].split_whitespace().next()?.to_string()
+    } else {
+        rest.split_whitespace().next()?.to_string()
+    };
+    let code = rest
+        .split("versionCode:")
+        .nth(1)?
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_string();
+    if pkg.is_empty() || code.is_empty() {
+        return None;
+    }
+    Some((pkg, code))
+}
+
+/// 从 dumpsys package 输出中解析 pkgFlags，判断是否为系统应用
+/// 兼容两种格式：
+///   pkgFlags=[ SYSTEM DEBUGGABLE ]  （字符串标志）
+///   pkgFlags=[ 0x1 ]                （位掩码，FLAG_SYSTEM = 0x1）
+fn parse_system_flag(output: &str) -> Option<bool> {
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if let Some(idx) = trimmed.find("pkgFlags=") {
+            let val = &trimmed[idx + 9..];
+            if val.contains("SYSTEM") {
+                return Some(true);
+            }
+            let num = val.trim_matches(|c: char| c == '[' || c == ']' || c == ' ');
+            if let Some(hex) = num.strip_prefix("0x") {
+                if let Ok(flags) = u64::from_str_radix(hex, 16) {
+                    return Some(flags & 0x1 != 0);
+                }
+            }
+        }
+    }
+    None
+}
+
 /// 从 dumpsys package 输出中提取应用信息
-fn parse_app_detail(output: &str, package_name: &str, apk_path: &str) -> AppInfo {
+fn parse_app_detail(
+    output: &str,
+    package_name: &str,
+    apk_path: &str,
+    system_set: &HashSet<String>,
+) -> AppInfo {
     let mut version_name = String::new();
     let mut version_code = String::new();
     let mut is_enabled = true;
@@ -320,7 +395,15 @@ fn parse_app_detail(output: &str, package_name: &str, apk_path: &str) -> AppInfo
         .unwrap_or(package_name)
         .to_string();
 
-    let is_system = apk_path.starts_with("/system/") || apk_path.starts_with("/vendor/") || apk_path.starts_with("/product/");
+    // 系统应用判定：优先 dumpsys 的 SYSTEM flag，其次 pm -s 集合，最后路径兜底
+    let is_system = parse_system_flag(output)
+        .unwrap_or_else(|| {
+            system_set.contains(package_name)
+                || apk_path.starts_with("/system/")
+                || apk_path.starts_with("/vendor/")
+                || apk_path.starts_with("/product/")
+                || apk_path.starts_with("/oem/")
+        });
 
     AppInfo {
         package_name: package_name.to_string(),
@@ -334,40 +417,90 @@ fn parse_app_detail(output: &str, package_name: &str, apk_path: &str) -> AppInfo
 }
 
 #[tauri::command]
-pub async fn list_apps(device_id: String, filter: String) -> Result<Vec<AppInfo>, String> {
+pub async fn list_apps(device_id: String, _filter: String) -> Result<Vec<AppInfo>, String> {
     tokio::task::spawn_blocking(move || {
-        let mut device = ADBServerDevice::new(device_id, None);
+        let mut device = ADBServerDevice::new(device_id.clone(), None);
 
-        // 根据过滤器选择 pm list packages 参数
-        let pm_cmd = match filter.as_str() {
-            "user" => "pm list packages -f -3",   // 仅第三方
-            "system" => "pm list packages -f -s", // 仅系统
-            _ => "pm list packages -f",           // 全部
-        };
-
-        let (stdout, _, _) = execute_shell_command(&mut device, pm_cmd)?;
+        // 1. 全量包列表（含 APK 路径），一次命令获取
+        let (stdout, _, _) = execute_shell_command(&mut device, "pm list packages -f")?;
         let packages = parse_package_list(&stdout);
 
-        let mut apps = Vec::new();
-        for (pkg_name, apk_path) in &packages {
-            // 获取每个应用的详细信息
-            let detail_cmd = format!("dumpsys package {}", pkg_name);
-            match execute_shell_command(&mut device, &detail_cmd) {
-                Ok((detail_out, _, _)) => {
-                    apps.push(parse_app_detail(&detail_out, pkg_name, apk_path));
+        // 2. 系统包集合（按 SYSTEM flag，比路径判断准确）
+        let mut system_set: HashSet<String> = HashSet::new();
+        if let Ok((sys_out, _, _)) = execute_shell_command(&mut device, "pm list packages -s") {
+            system_set = parse_package_names(&sys_out).into_iter().collect();
+        }
+
+        // 3. 已禁用（冻结）包集合
+        let mut disabled_set: HashSet<String> = HashSet::new();
+        if let Ok((d_out, _, _)) = execute_shell_command(&mut device, "pm list packages -d") {
+            disabled_set = parse_package_names(&d_out).into_iter().collect();
+        }
+
+        // 4. 版本号（API 26+ 支持 --show-versioncode，单命令秒级返回）
+        let mut version_map: HashMap<String, String> = HashMap::new();
+        let version_supported = match execute_shell_command(
+            &mut device,
+            "pm list packages --show-versioncode",
+        ) {
+            Ok((v_out, _, _)) => {
+                for line in v_out.lines() {
+                    if let Some((pkg, code)) = parse_version_line(line) {
+                        version_map.insert(pkg, code);
+                    }
                 }
-                Err(_) => {
-                    // 如果 dumpsys 失败，仍然添加基本信息
-                    let is_system = apk_path.starts_with("/system/") || apk_path.starts_with("/vendor/");
-                    apps.push(AppInfo {
-                        package_name: pkg_name.clone(),
-                        app_name: pkg_name.split('.').last().unwrap_or(pkg_name).to_string(),
-                        version_name: String::new(),
-                        version_code: String::new(),
-                        is_system,
-                        is_enabled: true,
-                        apk_path: apk_path.clone(),
-                    });
+                !version_map.is_empty()
+            }
+            Err(_) => false,
+        };
+
+        let mut apps = Vec::with_capacity(packages.len());
+        if version_supported {
+            // 主路径：快速组装，无需逐包 dumpsys
+            for (pkg_name, apk_path) in &packages {
+                apps.push(AppInfo {
+                    package_name: pkg_name.clone(),
+                    app_name: pkg_name
+                        .split('.')
+                        .last()
+                        .unwrap_or(pkg_name)
+                        .to_string(),
+                    version_name: String::new(),
+                    version_code: version_map.get(pkg_name).cloned().unwrap_or_default(),
+                    is_system: system_set.contains(pkg_name),
+                    is_enabled: !disabled_set.contains(pkg_name),
+                    apk_path: apk_path.clone(),
+                });
+            }
+        } else {
+            // 老设备（API < 26）fallback：逐包 dumpsys 获取详细信息
+            for (pkg_name, apk_path) in &packages {
+                let detail_cmd = format!("dumpsys package {}", pkg_name);
+                match execute_shell_command(&mut device, &detail_cmd) {
+                    Ok((detail_out, _, _)) => {
+                        apps.push(parse_app_detail(
+                            &detail_out,
+                            pkg_name,
+                            apk_path,
+                            &system_set,
+                        ));
+                    }
+                    Err(_) => {
+                        // 如果 dumpsys 失败，仍然添加基本信息
+                        apps.push(AppInfo {
+                            package_name: pkg_name.clone(),
+                            app_name: pkg_name
+                                .split('.')
+                                .last()
+                                .unwrap_or(pkg_name)
+                                .to_string(),
+                            version_name: String::new(),
+                            version_code: String::new(),
+                            is_system: system_set.contains(pkg_name),
+                            is_enabled: true,
+                            apk_path: apk_path.clone(),
+                        });
+                    }
                 }
             }
         }
@@ -378,6 +511,74 @@ pub async fn list_apps(device_id: String, filter: String) -> Result<Vec<AppInfo>
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
+}
+
+// ============================================
+// 单元测试
+// ============================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_version_line_with_path() {
+        // 真实设备输出：路径中可能含 ==，必须从最后一个 = 后取包名
+        let line = "package:/data/app/~~JIkXa2cRnARnLGtGZ6eLMg==/com.coloros.ocrscanner-dcNdvgkkMaHpYSTJc5NWDw==/base.apk=com.coloros.ocrscanner versionCode:160313";
+        assert_eq!(
+            parse_version_line(line),
+            Some(("com.coloros.ocrscanner".to_string(), "160313".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_parse_version_line_plain() {
+        // 无路径格式（API 26+ 精简输出）
+        let line = "package:com.android.chrome versionCode:609923000";
+        assert_eq!(
+            parse_version_line(line),
+            Some(("com.android.chrome".to_string(), "609923000".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_parse_package_names() {
+        let out = "package:com.oplus.metis\npackage:com.android.settings\n";
+        assert_eq!(
+            parse_package_names(out),
+            vec!["com.oplus.metis".to_string(), "com.android.settings".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_parse_package_list_with_double_eq() {
+        // -f 输出同样含 ==，rfind 必须正确
+        let out = "package:/data/app/~~AUo8tflPa9igkSf3y-M62A==/com.baidu.input_oppo-W3OUOLrgqXmG5KNG6spS6w==/base.apk=com.baidu.input_oppo";
+        assert_eq!(
+            parse_package_list(out),
+            vec![(
+                "com.baidu.input_oppo".to_string(),
+                "/data/app/~~AUo8tflPa9igkSf3y-M62A==/com.baidu.input_oppo-W3OUOLrgqXmG5KNG6spS6w==/base.apk".to_string()
+            )]
+        );
+    }
+
+    #[test]
+    fn test_parse_system_flag() {
+        // 字符串标志格式
+        let out = "  pkgFlags=[ SYSTEM DEBUGGABLE ]\n  enabled=1\n";
+        assert_eq!(parse_system_flag(out), Some(true));
+
+        // 位掩码格式（FLAG_SYSTEM = 0x1）
+        let out2 = "  pkgFlags=[ 0x1 ]\n";
+        assert_eq!(parse_system_flag(out2), Some(true));
+
+        let out3 = "  pkgFlags=[ 0x4000 ]\n";
+        assert_eq!(parse_system_flag(out3), Some(false));
+
+        // 无 pkgFlags
+        assert_eq!(parse_system_flag("versionName=1.0\n"), None);
+    }
 }
 
 #[tauri::command]
@@ -397,7 +598,7 @@ pub async fn uninstall_app(
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -413,7 +614,7 @@ pub async fn force_stop_app(device_id: String, package: String) -> Result<AdbRes
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -429,7 +630,7 @@ pub async fn clear_app_data(device_id: String, package: String) -> Result<AdbRes
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -445,7 +646,7 @@ pub async fn freeze_app(device_id: String, package: String) -> Result<AdbResult,
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -461,7 +662,7 @@ pub async fn unfreeze_app(device_id: String, package: String) -> Result<AdbResul
         Ok(AdbResult {
             stdout,
             stderr,
-            exit_code: exit_code.map(|c| c as i32).unwrap_or(-1),
+            exit_code: exit_code_or_default(exit_code),
         })
     })
     .await
@@ -728,8 +929,9 @@ pub async fn batch_uninstall(
             completed += 1;
             match uninstall_result {
                 Ok(Ok((stdout, stderr, exit_code))) => {
-                    let success = exit_code.map(|c| c == 0).unwrap_or(false)
-                        && stdout.contains("Success");
+                    // exit_code 为 None 时（shell v1 协议）按 0 处理，以 stdout 内容为准
+                    let code_ok = exit_code.map(|c| c == 0).unwrap_or(true);
+                    let success = code_ok && stdout.contains("Success");
                     task::update_task(
                         &app_clone,
                         st,

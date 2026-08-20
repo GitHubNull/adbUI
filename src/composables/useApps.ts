@@ -79,12 +79,15 @@ export function useApps() {
   const error = ref<string | null>(null);
   const currentFilter = ref<AppFilter>('all');
   const searchQuery = ref('');
+  // 请求序号：防止快速切换筛选时，旧的慢请求覆盖新结果
+  let fetchSeq = 0;
 
   // ============================================
-  // 获取应用列表
+  // 获取应用列表（后端统一返回全量，类型过滤由前端本地完成）
   // ============================================
 
   async function fetchApps(deviceId: string, filter?: AppFilter) {
+    const seq = ++fetchSeq;
     loading.value = true;
     error.value = null;
     const f = filter || currentFilter.value;
@@ -92,26 +95,29 @@ export function useApps() {
 
     try {
       if (isTauri()) {
-        apps.value = await invoke<AppInfo[]>('list_apps', {
+        const result = await invoke<AppInfo[]>('list_apps', {
           deviceId,
           filter: f,
         });
+        if (seq === fetchSeq) {
+          apps.value = result;
+        }
       } else {
         // 浏览器 mock 模式
         await new Promise((r) => setTimeout(r, 500));
-        let result = [...MOCK_APPS];
-        if (f === 'user') {
-          result = result.filter((a) => !a.is_system);
-        } else if (f === 'system') {
-          result = result.filter((a) => a.is_system);
+        if (seq === fetchSeq) {
+          apps.value = [...MOCK_APPS];
         }
-        apps.value = result;
       }
     } catch (err) {
-      error.value = String(err);
-      console.error('Failed to fetch apps:', err);
+      if (seq === fetchSeq) {
+        error.value = String(err);
+        console.error('Failed to fetch apps:', err);
+      }
     } finally {
-      loading.value = false;
+      if (seq === fetchSeq) {
+        loading.value = false;
+      }
     }
   }
 
