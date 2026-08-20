@@ -5,6 +5,14 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.0] - 2026-08-20
+
+### Changed
+
+- 后端 ADB 通信从调用外部 `adb` 命令行切换为 Rust 库 `adb_client`（`list_devices` / `get_device_detail` / `execute_adb` 命令 API 不变，前端无感知）
+- 移除基于 `tokio::process::Command` 的命令行解析与输出解析逻辑，改用 `ADBServer` / `ADBServerDevice` 直接交互
+- 桌面端不再要求本机安装 adb（Android SDK Platform-Tools），提升跨平台稳定性
+
 ## [0.1.0] - 2026-08-20
 
 ### Added

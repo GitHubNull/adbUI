@@ -52,7 +52,7 @@ adbUI 是一个基于 **Tauri (Rust + Vue)** 的跨平台 ADB (Android Debug Bri
 # 安装依赖
 pnpm install
 
-# 桌面端开发（启动 Tauri 窗口，需本机安装 adb）
+# 桌面端开发（启动 Tauri 窗口）
 pnpm tauri dev
 
 # 浏览器开发（Mock 模式，无需 adb）
@@ -65,7 +65,7 @@ pnpm build
 pnpm tauri build
 ```
 
-> 注意：运行桌面端需要本机已安装 `adb`（Android SDK Platform-Tools）并可通过 `adb devices` 检测到设备。
+> 注意：后端通过 `adb_client` 库与 ADB 服务直接通信，无需本机单独安装 adb 命令行工具。
 
 ## License
 

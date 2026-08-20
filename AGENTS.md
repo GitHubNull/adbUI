@@ -29,7 +29,7 @@ Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
 # 安装依赖
 pnpm install
 
-# 桌面端开发（Tauri 窗口，需本机安装 adb）
+# 桌面端开发（Tauri 窗口，通过 adb_client 库直连 ADB 服务，无需本机安装 adb）
 pnpm tauri dev
 
 # 浏览器开发（Mock 模式，无需 adb）
