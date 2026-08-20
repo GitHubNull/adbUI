@@ -2,9 +2,14 @@
 import { ref } from 'vue';
 import AppSidebar from './components/AppSidebar.vue';
 import DeviceManager from './views/DeviceManager.vue';
+import AppManager from './views/AppManager.vue';
+import FileManager from './views/FileManager.vue';
+import TaskCenter from './views/TaskCenter.vue';
 import { useDevices } from './composables/useDevices';
+import { useToast } from 'primevue/usetoast';
 
 const currentView = ref('devices');
+const toast = useToast();
 
 const {
   devices,
@@ -18,6 +23,14 @@ const {
 
 function onNavigate(view: string) {
   currentView.value = view;
+}
+
+function showToast(message: string, severity: string) {
+  toast.add({
+    severity: severity as any,
+    summary: message,
+    life: 3000,
+  });
 }
 </script>
 
@@ -36,6 +49,22 @@ function onNavigate(view: string) {
         @refresh="refreshDevices"
       />
 
+      <AppManager
+        v-else-if="currentView === 'apps'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <FileManager
+        v-else-if="currentView === 'files'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <TaskCenter
+        v-else-if="currentView === 'tasks'"
+      />
+
       <div v-else class="placeholder-view">
         <i class="pi pi-construction placeholder-icon"></i>
         <h2>{{ currentView }}</h2>
@@ -48,6 +77,9 @@ function onNavigate(view: string) {
       <ProgressSpinner />
       <span>正在刷新设备列表...</span>
     </div>
+
+    <!-- Toast -->
+    <Toast />
   </div>
 </template>
 

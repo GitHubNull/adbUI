@@ -5,6 +5,16 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.0] - 2026-08-20
+
+### Added
+
+- 新增应用管理模块：`AppManager` 视图 + `useApps` 组合式函数，支持应用列表（全部/系统/第三方/已禁用过滤与搜索）、卸载、强制停止、清除数据、冻结/解冻、提取 APK、安装 APK
+- 新增文件管理模块：`FileManager` 视图 + `useFiles` 组合式函数，支持设备文件浏览（路径导航/面包屑）、拉取文件到本地、推送文件到设备
+- 新增任务中心模块：`TaskCenter` 视图 + `useTasks` 组合式函数 + 后端 `task.rs`，支持批量安装/批量卸载任务的进度跟踪、取消与清理已完成任务
+- 后端 `adb.rs` 新增应用/文件/批量操作命令：`list_apps`、`uninstall_app`、`force_stop_app`、`clear_app_data`、`freeze_app`、`unfreeze_app`、`extract_apk`、`install_apk`、`list_files`、`pull_file`、`push_file`、`batch_uninstall`、`batch_install`
+- 接入 `tauri-plugin-dialog` 插件（文件选择对话框），前端新增 Toast 消息提示与对话框组件
+
 ## [0.2.0] - 2026-08-20
 
 ### Changed
