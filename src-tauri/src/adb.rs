@@ -2074,71 +2074,74 @@ pub struct RecordState {
     pub device_path: Option<String>,
 }
 
+/// 通过 screencap -p 获取屏幕 PNG 字节与分辨率
+fn screencap_png(device: &mut ADBServerDevice) -> Result<(Vec<u8>, u32, u32), String> {
+    let mut png_data = Vec::new();
+    device
+        .shell_command(&"screencap -p", Some(&mut png_data), None)
+        .map_err(|e| format!("screencap 失败: {}", e))?;
+
+    if !png_data.starts_with(&[0x89, b'P', b'N', b'G']) {
+        return Err("screencap 输出不是有效 PNG".to_string());
+    }
+
+    let (size_out, _, _) = execute_shell_command(device, "wm size")?;
+    let size_str = parse_wm_size(&size_out).ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
+    let parts: Vec<&str> = size_str.split('x').collect();
+    let width: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let height: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+    Ok((png_data, width, height))
+}
+
 /// 截取设备屏幕，返回 base64 编码 PNG
 #[tauri::command]
 pub async fn take_screenshot(device_id: String) -> Result<ScreenshotResult, String> {
     tokio::task::spawn_blocking(move || {
         let mut device = ADBServerDevice::new(device_id, None);
 
-        // 优先使用 framebuffer_bytes 原生 API
-        match device.framebuffer_bytes() {
-            Ok(bytes) => {
-                // framebuffer_bytes 返回 RGBA 原始数据，需要解析宽高
-                // 先通过 shell 获取屏幕分辨率
-                let (size_out, _, _) = execute_shell_command(&mut device, "wm size")?;
-                let size_str = parse_wm_size(&size_out)
-                    .ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
-                let parts: Vec<&str> = size_str.split('x').collect();
-                if parts.len() != 2 {
-                    return Err("无法解析屏幕分辨率格式".to_string());
-                }
-                let width: u32 = parts[0].parse().map_err(|_| "宽度解析失败".to_string())?;
-                let height: u32 = parts[1].parse().map_err(|_| "高度解析失败".to_string())?;
-
-                // 将 RGBA 数据编码为 PNG
-                let img = image::ImageBuffer::<image::Rgba<u8>, _>::from_vec(width, height, bytes)
-                    .ok_or_else(|| "RGBA 数据长度与分辨率不匹配".to_string())?;
-
-                let mut png_buf = Cursor::new(Vec::new());
-                img.write_to(&mut png_buf, image::ImageFormat::Png)
-                    .map_err(|e| format!("PNG 编码失败: {}", e))?;
-
-                use base64::Engine;
-                let b64 = base64::engine::general_purpose::STANDARD.encode(png_buf.into_inner());
-
-                Ok(ScreenshotResult {
-                    data: b64,
-                    width,
-                    height,
-                })
-            }
-            Err(_) => {
-                // 降级：使用 screencap -p shell 命令
-                // screencap -p 输出的是原始 PNG 字节（通过 stdout）
-                // 但 execute_shell_command 返回的是 String，需要重新获取二进制
-                let mut png_data = Vec::new();
-                device
-                    .shell_command(&"screencap -p", Some(&mut png_data), None)
-                    .map_err(|e| format!("screencap 失败: {}", e))?;
-
-                // 获取分辨率
-                let (size_out, _, _) = execute_shell_command(&mut device, "wm size")?;
-                let size_str = parse_wm_size(&size_out)
-                    .ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
-                let parts: Vec<&str> = size_str.split('x').collect();
-                let width: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
-                let height: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-
-                use base64::Engine;
-                let b64 = base64::engine::general_purpose::STANDARD.encode(&png_data);
-
-                Ok(ScreenshotResult {
-                    data: b64,
-                    width,
-                    height,
-                })
-            }
+        // 优先使用 screencap -p：兼容性最好，直接产出 PNG
+        // （部分设备 framebuffer 协议返回数据长度与分辨率不符，不可用）
+        if let Ok((png_data, width, height)) = screencap_png(&mut device) {
+            use base64::Engine;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&png_data);
+            return Ok(ScreenshotResult {
+                data: b64,
+                width,
+                height,
+            });
         }
+
+        // 降级：framebuffer 原始 RGBA 数据编码为 PNG
+        let bytes = device
+            .framebuffer_bytes()
+            .map_err(|e| format!("截图失败（screencap 与 framebuffer 均不可用）: {}", e))?;
+
+        let (size_out, _, _) = execute_shell_command(&mut device, "wm size")?;
+        let size_str = parse_wm_size(&size_out)
+            .ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
+        let parts: Vec<&str> = size_str.split('x').collect();
+        if parts.len() != 2 {
+            return Err("无法解析屏幕分辨率格式".to_string());
+        }
+        let width: u32 = parts[0].parse().map_err(|_| "宽度解析失败".to_string())?;
+        let height: u32 = parts[1].parse().map_err(|_| "高度解析失败".to_string())?;
+
+        let img = image::ImageBuffer::<image::Rgba<u8>, _>::from_vec(width, height, bytes)
+            .ok_or_else(|| "RGBA 数据长度与分辨率不匹配".to_string())?;
+
+        let mut png_buf = Cursor::new(Vec::new());
+        img.write_to(&mut png_buf, image::ImageFormat::Png)
+            .map_err(|e| format!("PNG 编码失败: {}", e))?;
+
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(png_buf.into_inner());
+
+        Ok(ScreenshotResult {
+            data: b64,
+            width,
+            height,
+        })
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
@@ -2149,10 +2152,68 @@ pub async fn take_screenshot(device_id: String) -> Result<ScreenshotResult, Stri
 pub async fn save_screenshot(device_id: String, save_path: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
         let mut device = ADBServerDevice::new(device_id, None);
-        device
-            .framebuffer(&Path::new(&save_path))
-            .map_err(|e| format!("保存截图失败: {}", e))?;
-        Ok(())
+        // 优先 screencap（兼容性最好）；失败再退到 framebuffer
+        match screencap_png(&mut device) {
+            Ok((png_data, _, _)) => {
+                std::fs::write(&save_path, &png_data)
+                    .map_err(|e| format!("写入截图文件失败: {}", e))?;
+                Ok(())
+            }
+            Err(_) => device
+                .framebuffer(&Path::new(&save_path))
+                .map_err(|e| format!("保存截图失败: {}", e)),
+        }
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 检测设备是否支持录屏
+#[tauri::command]
+pub async fn check_screen_record_support(device_id: String) -> Result<bool, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+
+        // 尝试启动一个短暂的录屏来检测权限
+        let test_path = "/data/local/tmp/.screenrecord_test.mp4";
+        let cmd = format!("screenrecord --time-limit=1 {}", test_path);
+        
+        // 使用 shell_command 执行，捕获 stderr
+        let mut stderr_buffer = Vec::new();
+        let result = device.shell_command(
+            &cmd,
+            None,
+            Some(&mut stderr_buffer),
+        );
+
+        // 清理测试文件（如果存在）
+        let _ = device.shell_command(
+            &format!("rm -f {}", test_path),
+            None,
+            None,
+        );
+
+        match result {
+            Ok(_) => {
+                // 检查 stderr 是否包含 Permission denied
+                let stderr = String::from_utf8_lossy(&stderr_buffer);
+                if stderr.contains("Permission denied") {
+                    Ok(false)
+                } else {
+                    Ok(true)
+                }
+            }
+            Err(e) => {
+                // 如果命令执行失败，检查错误信息
+                let err_msg = format!("{}", e);
+                if err_msg.contains("Permission denied") {
+                    Ok(false)
+                } else {
+                    // 其他错误，认为不支持
+                    Ok(false)
+                }
+            }
+        }
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
@@ -2163,20 +2224,35 @@ pub async fn save_screenshot(device_id: String, save_path: String) -> Result<(),
 pub async fn start_screen_record(device_id: String) -> Result<RecordState, String> {
     let device_id_clone = device_id.clone();
     tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id_clone.clone(), None);
+
+        // 使用 /data/local/tmp/ 作为录屏路径（shell 用户可写）
         let device_path = format!(
-            "/sdcard/screenrecord_{}.mp4",
+            "/data/local/tmp/screenrecord_{}.mp4",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs()
         );
 
-        let mut device = ADBServerDevice::new(device_id_clone, None);
-        // 在后台启动录屏（screenrecord 命令会阻塞直到超时或收到 SIGINT）
-        let cmd = format!("screenrecord {}", device_path);
-        // 使用 nohup 后台执行，立即返回
-        let bg_cmd = format!("nohup {} > /dev/null 2>&1 &", cmd);
+        // 使用 setsid 让 screenrecord 脱离当前终端会话，避免 adb shell 退出时 SIGHUP 终止子进程
+        let bg_cmd = format!(
+            "setsid sh -c 'screenrecord {}' > /dev/null 2>&1 &",
+            device_path
+        );
         execute_shell_command(&mut device, &bg_cmd)?;
+
+        // 验证 screenrecord 进程是否实际启动
+        std::thread::sleep(std::time::Duration::from_millis(800));
+        let (ps_out, _, _) = execute_shell_command(&mut device, "ps -A | grep screenrecord")
+            .unwrap_or_default();
+        if !ps_out.contains("screenrecord") {
+            // 进程未启动，可能是设备 SELinux 限制导致 screenrecord 无法写入
+            return Err(
+                "录屏启动失败：当前设备（Android 16+ / 部分 OEM）的 SELinux 策略限制 screenrecord 写入文件。"
+                    .to_string(),
+            );
+        }
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -2206,7 +2282,30 @@ pub async fn stop_screen_record(
         // 发送 SIGINT 停止 screenrecord 进程
         let _ = execute_shell_command(&mut device, "pkill -INT screenrecord");
         // 等待文件写入完成
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(std::time::Duration::from_millis(800));
+
+        // 检查设备端文件是否存在且非空
+        let (stat_out, _, _) = execute_shell_command(&mut device, &format!("ls -la {}", device_path))
+            .unwrap_or_default();
+        if !stat_out.contains(&device_path) {
+            return Err(
+                "录屏文件不存在：screenrecord 可能因设备权限限制未能写入文件。"
+                    .to_string(),
+            );
+        }
+        // 检查文件大小（避免拉取 0 字节文件）
+        let size_str = stat_out
+            .split_whitespace()
+            .nth(4)
+            .unwrap_or("0")
+            .parse::<u64>()
+            .unwrap_or(0);
+        if size_str == 0 {
+            return Err(
+                "录屏文件大小为 0 字节：screenrecord 可能因设备 SELinux 限制未能正常写入。"
+                    .to_string(),
+            );
+        }
 
         // 拉取文件到本地
         let mut file = std::fs::File::create(&local_path)
@@ -2216,7 +2315,7 @@ pub async fn stop_screen_record(
             .map_err(|e| format!("拉取录屏文件失败: {}", e))?;
 
         // 删除设备端文件
-        let _ = execute_shell_command(&mut device, &format!("rm {}", device_path));
+        let _ = execute_shell_command(&mut device, &format!("rm -f {}", device_path));
 
         Ok(())
     })
@@ -2303,8 +2402,53 @@ pub async fn get_performance_data(device_id: String) -> Result<PerformanceData, 
 
 /// 从 top 输出解析 CPU 使用率
 fn parse_cpu_usage(output: &str) -> Option<f32> {
-    // 格式示例: "User 12%, System 8%, IOW 0%, IRQ 0%"
+    // Android top 格式: "800%cpu 14%user 0%nice 31%sys 745%idle 0%iow 7%irq 3%sirq 0%host"
+    // 或单核: "Cpu(s):  5.0%us,  3.0%sy, 91.0%id, ..."
+    // 旧格式: "User 12%, System 8%, IOW 0%, IRQ 0%"
     for line in output.lines() {
+        // 尝试 Android 多核/单核格式
+        if line.contains("%cpu") || line.starts_with("Cpu(s):") {
+            // 提取 idle 百分比
+            if let Some(idle_pos) = line.find("idle") {
+                let before_idle = &line[..idle_pos];
+                // 从 idle 前面找最近的数字+%
+                let num_pct = before_idle
+                    .split_whitespace()
+                    .last()
+                    .and_then(|s| s.strip_suffix('%'));
+                if let Some(num_str) = num_pct {
+                    if let Ok(idle) = num_str.parse::<f32>() {
+                        // 多核格式中 total 可能 >100，但 idle 也是同比例
+                        // 例如 800%cpu 745%idle → 使用率 = (800-745)/800*100 = 6.875%
+                        // 等价于 100% - 745%*(100/800) = 100-93.125=6.875
+                        // 简化：若行首有 "NNN%cpu"，则 total=NNN，否则 total=100
+                        let total = line
+                            .split_whitespace()
+                            .next()
+                            .and_then(|s| s.strip_suffix("%cpu"))
+                            .and_then(|s| s.parse::<f32>().ok())
+                            .unwrap_or(100.0);
+                        if total > 0.0 {
+                            return Some(((total - idle) / total) * 100.0);
+                        }
+                    }
+                }
+            }
+            // 回退：找 %id 或类似标记
+            if let Some(id_pos) = line.find("%id") {
+                let before = &line[..id_pos];
+                let num_str = before
+                    .rsplit(|c: char| c.is_whitespace() || c == ',')
+                    .next()
+                    .unwrap_or("")
+                    .trim();
+                if let Ok(idle) = num_str.parse::<f32>() {
+                    return Some(100.0 - idle);
+                }
+            }
+        }
+
+        // 旧格式: "User 12%, System 8%, IOW 0%, IRQ 0%"
         if line.contains("User") && line.contains("System") {
             let mut total = 0.0f32;
             for part in line.split(',') {
@@ -2545,7 +2689,23 @@ mod m2_tests {
         assert!(parse_battery("incomplete\nlevel: 1\n").is_none());
     }
 
-    // ============ 命令构造 ============
+    #[test]
+    fn test_parse_cpu_usage_android() {
+        // Android 多核格式
+        let out = "800%cpu 14%user 0%nice 31%sys 745%idle 0%iow 7%irq 3%sirq 0%host";
+        let cpu = parse_cpu_usage(out).unwrap();
+        assert!((cpu - 6.875).abs() < 0.01, "expected ~6.875, got {}", cpu);
+
+        // 单核/简写格式
+        let out2 = "Cpu(s):  5.0%us,  3.0%sy, 91.0%id,  0.0%wa,  1.0%hi,  0.0%si,  0.0%st";
+        let cpu2 = parse_cpu_usage(out2).unwrap();
+        assert!((cpu2 - 9.0).abs() < 0.01, "expected ~9.0, got {}", cpu2);
+
+        // 旧格式
+        let out3 = "User 12%, System 8%, IOW 0%, IRQ 0%";
+        let cpu3 = parse_cpu_usage(out3).unwrap();
+        assert_eq!(cpu3, 20.0);
+    }
 
     #[test]
     fn test_build_wm_commands() {

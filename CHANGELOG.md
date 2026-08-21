@@ -5,6 +5,23 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.0] - 2026-08-21
+
+### Added
+
+- 新增录屏支持检测：后端 `check_screen_record_support` 命令 + 前端 `recordSupported` 状态，设备切换时自动检测，不支持录屏（Android 16+ / 未 root 设备受 SELinux 限制）时禁用按钮并显示提示
+- 截图方案重构：`take_screenshot` / `save_screenshot` 优先使用 `screencap -p`（兼容性最好，直接产出 PNG），失败时降级 framebuffer 原始 RGBA 编码
+
+### Fixed
+
+- 修复 `parse_cpu_usage` 不识别 Android 多核 top 格式（如 `800%cpu ... 745%idle`）与 `Cpu(s):` 单核格式的问题，按 idle 占比换算 CPU 使用率，并新增对应单元测试
+- 修复录屏启动/停止的兼容性问题：录屏文件路径从 `/sdcard/` 改为 `/data/local/tmp/`（shell 用户可写）、改用 `setsid` 启动避免 adb shell 退出时 SIGHUP 终止进程、启动后校验进程存在、停止时校验文件存在且非空
+- 修复取消保存对话框后录屏进程未停止的问题：`stopRecord` 在用户取消时仍触发后端停止逻辑，返回结构化结果 `{ path, error }`
+
+### Changed
+
+- `startRecord` / `stopRecord` 返回结构化结果（`{ success, error }` / `{ path, error }`），前端 Toast 展示具体失败原因
+
 ## [0.5.0] - 2026-08-21
 
 ### Added

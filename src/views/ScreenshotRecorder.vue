@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { watch } from 'vue';
 import { useScreenshot } from '../composables/useScreenshot';
 import type { DeviceInfo } from '../types/device';
 
@@ -15,12 +16,23 @@ const {
   loading,
   recordState,
   recordElapsed,
+  recordSupported,
   takeScreenshot,
   saveScreenshot,
+  checkRecordSupport,
   startRecord,
   stopRecord,
   formatElapsed,
 } = useScreenshot();
+
+// 监听设备切换，检测录屏支持
+watch(() => props.selectedDevice, async (newDevice) => {
+  if (newDevice) {
+    await checkRecordSupport(newDevice.id);
+  } else {
+    recordSupported.value = null;
+  }
+}, { immediate: true });
 
 async function onTakeScreenshot() {
   if (!props.selectedDevice) {
@@ -53,18 +65,20 @@ async function onToggleRecord() {
   }
 
   if (recordState.value.recording) {
-    const path = await stopRecord(props.selectedDevice.id);
-    if (path) {
-      emit('toast', `录屏已保存: ${path}`, 'success');
+    const result = await stopRecord(props.selectedDevice.id);
+    if (result.error) {
+      emit('toast', `录屏保存失败: ${result.error}`, 'error');
+    } else if (result.path) {
+      emit('toast', `录屏已保存: ${result.path}`, 'success');
     } else {
       emit('toast', '录屏已停止', 'info');
     }
   } else {
-    const ok = await startRecord(props.selectedDevice.id);
-    if (ok) {
+    const result = await startRecord(props.selectedDevice.id);
+    if (result.success) {
       emit('toast', '录屏已开始', 'success');
     } else {
-      emit('toast', '启动录屏失败', 'error');
+      emit('toast', `启动录屏失败: ${result.error}`, 'error');
     }
   }
 }
@@ -123,13 +137,18 @@ async function onToggleRecord() {
       />
 
       <div class="record-section">
-        <Button
-          :label="recordState.recording ? '停止录屏' : '开始录屏'"
-          :icon="recordState.recording ? 'pi pi-stop-circle' : 'pi pi-video'"
-          :severity="recordState.recording ? 'danger' : 'secondary'"
-          :disabled="!selectedDevice"
-          @click="onToggleRecord"
-        />
+        <span
+          v-tooltip.top="recordSupported === false ? '当前设备不支持录屏（Android 16+ / 未 root 设备受 SELinux 限制）' : null"
+          class="record-button-wrapper"
+        >
+          <Button
+            :label="recordState.recording ? '停止录屏' : '开始录屏'"
+            :icon="recordState.recording ? 'pi pi-stop-circle' : 'pi pi-video'"
+            :severity="recordState.recording ? 'danger' : 'secondary'"
+            :disabled="!selectedDevice || recordSupported === false"
+            @click="onToggleRecord"
+          />
+        </span>
         <span v-if="recordState.recording" class="record-timer">
           <span class="record-dot"></span>
           {{ formatElapsed(recordElapsed) }}
@@ -230,6 +249,10 @@ async function onToggleRecord() {
   align-items: center;
   gap: 0.75rem;
   margin-left: auto;
+}
+
+.record-button-wrapper {
+  display: inline-block;
 }
 
 .record-timer {
