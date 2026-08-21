@@ -5,6 +5,13 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.1] - 2026-08-21
+
+### Changed
+
+- 重构文档体系：根目录 `AGENTS.md` 改为极简指针文件，AI 助手指南完整版迁移至 `doc/dev-guide/ai-agent/`（中英文），新增 `doc/dev-guide/human/` 开发者指南（中英文）与 `doc/user-guide/` 用户指南（中英文），新增 `doc/README.md` 文档索引，移除 `doc/.gitkeep`
+- README 全面更新：功能特性扩展至 16 个功能模块（含应用管理、文件管理、任务中心、自动化脚本等）、技术栈说明更新（Vite 6 / PrimeVue 4 / adb_client 3.2）、目录结构与文档索引章节重写
+
 ## [0.6.0] - 2026-08-21
 
 ### Added
