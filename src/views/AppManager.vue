@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { DeviceInfo, AppInfo, TaskInfo } from '../types/device';
 import { useApps } from '../composables/useApps';
+import AppToolbar from '../components/app-manager/AppToolbar.vue';
+import AppTable from '../components/app-manager/AppTable.vue';
+import AppConfirmDialog from '../components/app-manager/AppConfirmDialog.vue';
 
 const props = defineProps<{
   selectedDevice: DeviceInfo | null;
@@ -114,22 +117,6 @@ function onFilterChange(event: any) {
   currentFilter.value = filter as any;
   // 类型过滤为本地即时过滤，无需重新请求后端
   selectedApps.value = [];
-}
-
-function getAppTypeSeverity(app: AppInfo): string {
-  return app.is_system ? 'info' : 'success';
-}
-
-function getAppTypeLabel(app: AppInfo): string {
-  return app.is_system ? '系统' : '用户';
-}
-
-function getStatusSeverity(app: AppInfo): string {
-  return app.is_enabled ? 'success' : 'danger';
-}
-
-function getStatusLabel(app: AppInfo): string {
-  return app.is_enabled ? '已启用' : '已冻结';
 }
 
 // ============================================
@@ -251,136 +238,28 @@ async function onBatchUninstall() {
 <template>
   <div class="app-manager">
     <!-- Toolbar -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <h2 class="page-title">
-          <i class="pi pi-th-large page-icon"></i>
-          应用管理
-        </h2>
-        <SelectButton
-          v-model="currentFilter"
-          :options="[
-            { label: '全部', value: 'all' },
-            { label: '用户应用', value: 'user' },
-            { label: '系统应用', value: 'system' },
-          ]"
-          option-label="label"
-          option-value="value"
-          @change="onFilterChange"
-        />
-      </div>
-      <div class="toolbar-right">
-        <InputText
-          v-model="searchQuery"
-          placeholder="搜索应用..."
-          class="search-input"
-        />
-        <Button
-          icon="pi pi-upload"
-          label="安装 APK"
-          @click="onInstallApk"
-        />
-        <Button
-          v-if="selectedApps.length > 0"
-          icon="pi pi-trash"
-          label="批量卸载"
-          severity="danger"
-          @click="onBatchUninstall"
-        />
-      </div>
-    </div>
+    <AppToolbar
+      v-model:current-filter="currentFilter"
+      v-model:search-query="searchQuery"
+      :selected-count="selectedApps.length"
+      @filter-change="onFilterChange"
+      @install-apk="onInstallApk"
+      @batch-uninstall="onBatchUninstall"
+    />
 
     <!-- App List -->
     <div class="app-list-panel">
-      <DataTable
+      <AppTable
         v-if="props.selectedDevice"
-        :value="filteredApps"
-        v-model:selection="selectedApps"
-        data-key="package_name"
-        striped-rows
+        :apps="filteredApps"
         :loading="loading"
-        class="app-table"
-      >
-        <Column selection-mode="multiple" style="width: 40px" />
-
-        <Column field="app_name" header="应用名">
-          <template #body="{ data }">
-            <div class="app-name-cell">
-              <span class="font-medium">{{ data.app_name }}</span>
-              <Tag
-                :value="getAppTypeLabel(data)"
-                :severity="getAppTypeSeverity(data)"
-                class="type-tag"
-              />
-            </div>
-          </template>
-        </Column>
-
-        <Column field="package_name" header="包名">
-          <template #body="{ data }">
-            <span class="font-mono text-sm">{{ data.package_name }}</span>
-          </template>
-        </Column>
-
-        <Column header="版本" style="width: 120px">
-          <template #body="{ data }">
-            <span>{{ data.version_code || data.version_name || '—' }}</span>
-          </template>
-        </Column>
-
-        <Column field="status" header="状态" style="width: 100px">
-          <template #body="{ data }">
-            <Tag
-              :value="getStatusLabel(data)"
-              :severity="getStatusSeverity(data)"
-              class="status-tag"
-            />
-          </template>
-        </Column>
-
-        <Column header="操作" style="width: 280px">
-          <template #body="{ data }">
-            <div class="action-buttons">
-              <Button
-                icon="pi pi-stop"
-                text
-                size="small"
-                v-tooltip.top="'强制停止'"
-                @click="onForceStop(data)"
-              />
-              <Button
-                icon="pi pi-eraser"
-                text
-                size="small"
-                v-tooltip.top="'清除数据'"
-                @click="openConfirm('clear', data, `确定要清除 ${data.app_name} 的所有数据吗？此操作不可恢复。`)"
-              />
-              <Button
-                :icon="data.is_enabled ? 'pi pi-lock' : 'pi pi-lock-open'"
-                text
-                size="small"
-                v-tooltip.top="data.is_enabled ? '冻结应用' : '解冻应用'"
-                @click="onFreeze(data)"
-              />
-              <Button
-                icon="pi pi-download"
-                text
-                size="small"
-                v-tooltip.top="'提取 APK'"
-                @click="onExtractApk(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                text
-                size="small"
-                severity="danger"
-                v-tooltip.top="'卸载'"
-                @click="openConfirm('uninstall', data, `确定要卸载 ${data.app_name} 吗？`)"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
+        v-model:selected-apps="selectedApps"
+        @force-stop="onForceStop"
+        @clear-data="(app) => openConfirm('clear', app, `确定要清除 ${app.app_name} 的所有数据吗？此操作不可恢复。`)"
+        @freeze="onFreeze"
+        @extract-apk="onExtractApk"
+        @uninstall="(app) => openConfirm('uninstall', app, `确定要卸载 ${app.app_name} 吗？`)"
+      />
 
       <!-- Empty State -->
       <div v-if="!props.selectedDevice" class="empty-state">
@@ -397,123 +276,13 @@ async function onBatchUninstall() {
     </div>
 
     <!-- Confirm Dialog -->
-    <Dialog v-model:visible="confirmVisible" modal header="确认操作" :style="{ width: '400px' }">
-      <p>{{ confirmMessage }}</p>
-      <template #footer>
-        <Button label="取消" text @click="confirmVisible = false" />
-        <Button label="确认" severity="danger" @click="executeConfirmed" />
-      </template>
-    </Dialog>
+    <AppConfirmDialog
+      v-model:visible="confirmVisible"
+      :message="confirmMessage"
+      @confirm="executeConfirmed"
+    />
   </div>
 </template>
 
-<style scoped>
-.app-manager {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 1.5rem;
-  gap: 1rem;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--surface-200);
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.page-icon {
-  color: var(--primary-color);
-  font-size: 1.5rem;
-}
-
-.search-input {
-  width: 200px;
-}
-
-.app-list-panel {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-}
-
-.app-table {
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.app-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.type-tag {
-  font-size: 0.7rem;
-}
-
-.status-tag {
-  font-size: 0.75rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.font-mono {
-  font-family: 'Courier New', monospace;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  text-align: center;
-  color: var(--text-color-secondary);
-}
-
-.empty-icon {
-  font-size: 4rem;
-  margin-bottom: 1rem;
-  color: var(--surface-400);
-}
-
-.empty-state h3 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  color: var(--text-color);
-}
-
-.empty-state p {
-  margin: 0;
-}
+<style scoped src="../components/app-manager/app-manager.css">
 </style>

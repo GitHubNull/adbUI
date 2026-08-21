@@ -2,6 +2,10 @@
 import { ref, watch, onMounted } from 'vue';
 import { useDisplay } from '../composables/useDisplay';
 import type { DeviceInfo } from '../types/device';
+import DisplayPresets from '../components/display-settings/DisplayPresets.vue';
+import OverscanPanel from '../components/display-settings/OverscanPanel.vue';
+import SystemParamsPanel from '../components/display-settings/SystemParamsPanel.vue';
+import Button from 'primevue/button';
 
 const props = defineProps<{
   selectedDevice: DeviceInfo | null;
@@ -12,24 +16,6 @@ const emit = defineEmits<{
 }>();
 
 const { display, loading, fetchDisplayState, setDisplay, resetDisplay, setSystemParam } = useDisplay();
-
-// ============ 分辨率 / DPI ============
-const customSize = ref('');
-const customDensity = ref<number | null>(null);
-
-const SIZE_PRESETS = [
-  { label: '原生', value: '' },
-  { label: '1080P', value: '1080x2400' },
-  { label: '720P', value: '720x1600' },
-  { label: '2K', value: '1440x3200' },
-];
-const DENSITY_PRESETS = [
-  { label: '原生', value: 0 },
-  { label: '480', value: 480 },
-  { label: '420', value: 420 },
-  { label: '360', value: 360 },
-  { label: '320', value: 320 },
-];
 
 // ============ 过扫描 ============
 const overscan = ref<[number, number, number, number]>([0, 0, 0, 0]);
@@ -58,10 +44,6 @@ watch(() => props.selectedDevice?.id, load);
 // 分辨率 / DPI 操作
 // ============================================
 
-function validSize(s: string): boolean {
-  return /^\d+x\d+$/.test(s);
-}
-
 async function applySize(size: string) {
   if (!props.selectedDevice) return;
   const target = size || display.value?.default_size || '';
@@ -75,14 +57,6 @@ async function applySize(size: string) {
   }
 }
 
-async function applyCustomSize() {
-  if (!validSize(customSize.value)) {
-    emit('toast', '分辨率格式非法，应为 宽x高（如 1080x2400）', 'warn');
-    return;
-  }
-  await applySize(customSize.value);
-}
-
 async function applyDensity(density: number) {
   if (!props.selectedDevice) return;
   const target = density || display.value?.default_density || 0;
@@ -94,14 +68,6 @@ async function applyDensity(density: number) {
   } catch (e) {
     emit('toast', String(e), 'error');
   }
-}
-
-async function applyCustomDensity() {
-  if (!customDensity.value || customDensity.value <= 0) {
-    emit('toast', '密度应为正整数', 'warn');
-    return;
-  }
-  await applyDensity(customDensity.value);
 }
 
 // ============================================
@@ -225,263 +191,30 @@ async function onResetDisplay() {
       </div>
 
       <div class="cards">
-        <!-- 分辨率 / DPI 卡片 -->
-        <div class="card">
-          <h3 class="card-title">分辨率 / DPI</h3>
-          <div class="field">
-            <label>分辨率预设</label>
-            <div class="btn-group">
-              <Button
-                v-for="p in SIZE_PRESETS"
-                :key="p.label"
-                :label="p.label"
-                size="small"
-                :outlined="display?.size !== p.value"
-                @click="applySize(p.value)"
-              />
-            </div>
-          </div>
-          <div class="field">
-            <label>自定义分辨率</label>
-            <div class="input-row">
-              <InputText v-model="customSize" placeholder="如 1080x2400" class="flex-1" />
-              <Button label="应用" size="small" @click="applyCustomSize" />
-            </div>
-          </div>
-          <Divider />
-          <div class="field">
-            <label>密度预设</label>
-            <div class="btn-group">
-              <Button
-                v-for="p in DENSITY_PRESETS"
-                :key="p.label"
-                :label="p.label"
-                size="small"
-                :outlined="display?.density !== p.value"
-                @click="applyDensity(p.value)"
-              />
-            </div>
-          </div>
-          <div class="field">
-            <label>自定义密度</label>
-            <div class="input-row">
-              <InputNumber v-model="customDensity" placeholder="如 420" class="flex-1" />
-              <Button label="应用" size="small" @click="applyCustomDensity" />
-            </div>
-          </div>
-        </div>
-
-        <!-- 过扫描卡片 -->
-        <div class="card">
-          <h3 class="card-title">过扫描</h3>
-          <p class="hint">Android 10+ 部分机型不支持，失败将自动重置</p>
-          <div class="overscan-preview">
-            <div
-              class="overscan-screen"
-              :style="{
-                borderTopWidth: Math.max(0, overscan[1]) / 4 + 'px',
-                borderRightWidth: Math.max(0, overscan[2]) / 4 + 'px',
-                borderBottomWidth: Math.max(0, overscan[3]) / 4 + 'px',
-                borderLeftWidth: Math.max(0, overscan[0]) / 4 + 'px',
-              }"
-            ></div>
-          </div>
-          <div v-for="(label, i) in ['左', '上', '右', '下']" :key="i" class="field">
-            <label>{{ label }}: {{ overscan[i] }}px</label>
-            <Slider v-model="overscan[i]" :min="-200" :max="200" :step="10" />
-          </div>
-          <div class="input-row">
-            <Button label="应用" size="small" @click="applyOverscan" />
-            <Button label="重置" size="small" text severity="danger" @click="resetOverscan" />
-          </div>
-        </div>
-
-        <!-- 系统参数卡片 -->
-        <div class="card">
-          <h3 class="card-title">系统参数</h3>
-          <div class="field">
-            <label>动画速度</label>
-            <div class="btn-group">
-              <Button label="关闭" size="small" :outlined="animScale !== 0" @click="applyAnimScale(0)" />
-              <Button label="0.5x" size="small" :outlined="animScale !== 0.5" @click="applyAnimScale(0.5)" />
-              <Button label="1x" size="small" :outlined="animScale !== 1" @click="applyAnimScale(1)" />
-            </div>
-          </div>
-          <div class="field">
-            <label>自定义动画: {{ animScale }}x</label>
-            <Slider v-model="animScale" :min="0" :max="10" :step="0.5" @change="applyAnimScale(animScale)" />
-          </div>
-          <Divider />
-          <div class="field">
-            <label>字体大小: {{ fontScale }}</label>
-            <Slider v-model="fontScale" :min="0.85" :max="1.3" :step="0.05" />
-            <Button label="应用" size="small" class="mt" @click="applyFontScale" />
-          </div>
-          <Divider />
-          <div class="field">
-            <label>锁屏时间（毫秒，0 表示立即）</label>
-            <div class="input-row">
-              <InputNumber v-model="lockTimeout" :min="0" class="flex-1" />
-              <Button label="应用" size="small" @click="applyLockTimeout" />
-            </div>
-          </div>
-          <Divider />
-          <Button label="恢复默认" text severity="danger" @click="resetSystemParams" />
-        </div>
+        <DisplayPresets
+          :display="display"
+          @apply-size="applySize"
+          @apply-density="applyDensity"
+          @toast="(msg, sev) => emit('toast', msg, sev)"
+        />
+        <OverscanPanel
+          v-model:overscan="overscan"
+          @apply="applyOverscan"
+          @reset="resetOverscan"
+        />
+        <SystemParamsPanel
+          v-model:anim-scale="animScale"
+          v-model:font-scale="fontScale"
+          v-model:lock-timeout="lockTimeout"
+          @apply-anim-scale="applyAnimScale"
+          @apply-font-scale="applyFontScale"
+          @apply-lock-timeout="applyLockTimeout"
+          @reset-system-params="resetSystemParams"
+        />
       </div>
     </template>
   </div>
 </template>
 
-<style scoped>
-.display-settings {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 1.5rem;
-  gap: 1rem;
-  overflow: auto;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--surface-200);
-}
-
-.page-title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-}
-
-.page-icon {
-  color: var(--primary-color);
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.current-bar {
-  display: flex;
-  gap: 2rem;
-  padding: 1rem;
-  background: var(--surface-card);
-  border: 1px solid var(--surface-200);
-  border-radius: 8px;
-}
-
-.current-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.current-label {
-  font-size: 0.8rem;
-  color: var(--text-color-secondary);
-}
-
-.current-value {
-  font-size: 1.1rem;
-  font-weight: 600;
-  font-family: monospace;
-}
-
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1rem;
-}
-
-.card {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-200);
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.card-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.hint {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--orange-500);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.field label {
-  font-size: 0.85rem;
-  color: var(--text-color-secondary);
-}
-
-.btn-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.input-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-.mt {
-  margin-top: 0.5rem;
-  align-self: flex-start;
-}
-
-.overscan-preview {
-  display: flex;
-  justify-content: center;
-  padding: 1rem 0;
-}
-
-.overscan-screen {
-  width: 120px;
-  height: 240px;
-  border: 2px solid var(--primary-color);
-  border-radius: 12px;
-  background: var(--surface-100);
-  transition: border-width 0.2s;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  color: var(--text-color-secondary);
-}
-
-.empty-icon {
-  font-size: 3rem;
-  margin-bottom: 1rem;
-  color: var(--surface-400);
-}
+<style scoped src="../components/display-settings/display-settings.css">
 </style>

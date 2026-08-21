@@ -5,6 +5,13 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.6.2] - 2026-08-21
+
+### Changed
+
+- 后端重构：单体 `adb.rs`（2827 行）拆分为 `src-tauri/src/adb/` 目录下 15 个模块文件（models / helpers / device / apps / files / batch / m2 / m2_commands / m2_tests / logs / screenshot / performance / history / report / mod），通过 `mod.rs` 统一 re-export，对外命令与行为完全不变
+- 前端重构：`AppManager` / `DeviceManager` / `DisplaySettings` / `PerformanceMonitor` 四个视图的模板与样式抽取为独立组件（`AppToolbar` / `AppTable` / `AppConfirmDialog` / `DisplayPresets` / `OverscanPanel` / `SystemParamsPanel`）及独立 CSS 文件，视图代码量缩减 90%+，功能与交互不变
+
 ## [0.6.1] - 2026-08-21
 
 ### Changed
