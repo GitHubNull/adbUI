@@ -212,8 +212,13 @@ pub async fn get_device_detail(device_id: String) -> Result<DeviceDetail, String
 pub async fn execute_adb(
     command: String,
     device_id: Option<String>,
+    history_state: State<'_, Arc<CommandHistoryState>>,
 ) -> Result<AdbResult, String> {
-    tokio::task::spawn_blocking(move || {
+    let cmd = command.clone();
+    let dev_id = device_id.clone().unwrap_or_default();
+    let state_clone = history_state.inner().clone();
+
+    let result = tokio::task::spawn_blocking(move || -> Result<AdbResult, String> {
         let mut device = match device_id {
             Some(id) => ADBServerDevice::new(id, None),
             None => ADBServerDevice::autodetect(None),
@@ -228,7 +233,12 @@ pub async fn execute_adb(
         })
     })
     .await
-    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // 自动记录命令历史
+    record_command(&state_clone, &cmd, &result, &dev_id);
+
+    Ok(result)
 }
 
 // ============================================
@@ -2026,6 +2036,466 @@ pub async fn get_device_report(device_id: String) -> Result<DeviceReport, String
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
+}
+
+// ============================================
+// 日志查看
+// ============================================
+
+/// 获取设备日志（logcat -d 快照模式）
+#[tauri::command]
+pub async fn get_device_logs(device_id: String) -> Result<String, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+        let (stdout, _, _) = execute_shell_command(&mut device, "logcat -d")?;
+        Ok(stdout)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+// ============================================
+// 截图录屏
+// ============================================
+
+/// 截图结果（base64 编码 PNG）
+#[derive(Serialize)]
+pub struct ScreenshotResult {
+    pub data: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// 录屏状态
+#[derive(Serialize, Clone)]
+pub struct RecordState {
+    pub recording: bool,
+    pub start_time: Option<u64>,
+    pub device_path: Option<String>,
+}
+
+/// 截取设备屏幕，返回 base64 编码 PNG
+#[tauri::command]
+pub async fn take_screenshot(device_id: String) -> Result<ScreenshotResult, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+
+        // 优先使用 framebuffer_bytes 原生 API
+        match device.framebuffer_bytes() {
+            Ok(bytes) => {
+                // framebuffer_bytes 返回 RGBA 原始数据，需要解析宽高
+                // 先通过 shell 获取屏幕分辨率
+                let (size_out, _, _) = execute_shell_command(&mut device, "wm size")?;
+                let size_str = parse_wm_size(&size_out)
+                    .ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
+                let parts: Vec<&str> = size_str.split('x').collect();
+                if parts.len() != 2 {
+                    return Err("无法解析屏幕分辨率格式".to_string());
+                }
+                let width: u32 = parts[0].parse().map_err(|_| "宽度解析失败".to_string())?;
+                let height: u32 = parts[1].parse().map_err(|_| "高度解析失败".to_string())?;
+
+                // 将 RGBA 数据编码为 PNG
+                let img = image::ImageBuffer::<image::Rgba<u8>, _>::from_vec(width, height, bytes)
+                    .ok_or_else(|| "RGBA 数据长度与分辨率不匹配".to_string())?;
+
+                let mut png_buf = Cursor::new(Vec::new());
+                img.write_to(&mut png_buf, image::ImageFormat::Png)
+                    .map_err(|e| format!("PNG 编码失败: {}", e))?;
+
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(png_buf.into_inner());
+
+                Ok(ScreenshotResult {
+                    data: b64,
+                    width,
+                    height,
+                })
+            }
+            Err(_) => {
+                // 降级：使用 screencap -p shell 命令
+                // screencap -p 输出的是原始 PNG 字节（通过 stdout）
+                // 但 execute_shell_command 返回的是 String，需要重新获取二进制
+                let mut png_data = Vec::new();
+                device
+                    .shell_command(&"screencap -p", Some(&mut png_data), None)
+                    .map_err(|e| format!("screencap 失败: {}", e))?;
+
+                // 获取分辨率
+                let (size_out, _, _) = execute_shell_command(&mut device, "wm size")?;
+                let size_str = parse_wm_size(&size_out)
+                    .ok_or_else(|| "无法解析屏幕分辨率".to_string())?;
+                let parts: Vec<&str> = size_str.split('x').collect();
+                let width: u32 = parts.first().and_then(|s| s.parse().ok()).unwrap_or(0);
+                let height: u32 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&png_data);
+
+                Ok(ScreenshotResult {
+                    data: b64,
+                    width,
+                    height,
+                })
+            }
+        }
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 保存截图到本地路径
+#[tauri::command]
+pub async fn save_screenshot(device_id: String, save_path: String) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+        device
+            .framebuffer(&Path::new(&save_path))
+            .map_err(|e| format!("保存截图失败: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 开始录屏
+#[tauri::command]
+pub async fn start_screen_record(device_id: String) -> Result<RecordState, String> {
+    let device_id_clone = device_id.clone();
+    tokio::task::spawn_blocking(move || {
+        let device_path = format!(
+            "/sdcard/screenrecord_{}.mp4",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs()
+        );
+
+        let mut device = ADBServerDevice::new(device_id_clone, None);
+        // 在后台启动录屏（screenrecord 命令会阻塞直到超时或收到 SIGINT）
+        let cmd = format!("screenrecord {}", device_path);
+        // 使用 nohup 后台执行，立即返回
+        let bg_cmd = format!("nohup {} > /dev/null 2>&1 &", cmd);
+        execute_shell_command(&mut device, &bg_cmd)?;
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+
+        Ok(RecordState {
+            recording: true,
+            start_time: Some(now),
+            device_path: Some(device_path),
+        })
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 停止录屏并拉取到本地
+#[tauri::command]
+pub async fn stop_screen_record(
+    device_id: String,
+    device_path: String,
+    local_path: String,
+) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+
+        // 发送 SIGINT 停止 screenrecord 进程
+        let _ = execute_shell_command(&mut device, "pkill -INT screenrecord");
+        // 等待文件写入完成
+        std::thread::sleep(std::time::Duration::from_millis(500));
+
+        // 拉取文件到本地
+        let mut file = std::fs::File::create(&local_path)
+            .map_err(|e| format!("创建本地文件失败: {}", e))?;
+        device
+            .pull(&device_path, &mut file)
+            .map_err(|e| format!("拉取录屏文件失败: {}", e))?;
+
+        // 删除设备端文件
+        let _ = execute_shell_command(&mut device, &format!("rm {}", device_path));
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+// ============================================
+// 性能监控
+// ============================================
+
+/// 单个进程信息
+#[derive(Serialize, Clone, Debug)]
+pub struct ProcessInfo {
+    pub pid: u32,
+    pub user: String,
+    pub cpu_percent: f32,
+    pub memory_kb: u64,
+    pub name: String,
+}
+
+/// 性能数据快照
+#[derive(Serialize)]
+pub struct PerformanceData {
+    pub cpu_usage: f32,
+    pub memory_used: u64,
+    pub memory_total: u64,
+    pub temperature: f32,
+    pub processes: Vec<ProcessInfo>,
+}
+
+/// 获取设备性能数据
+#[tauri::command]
+pub async fn get_performance_data(device_id: String) -> Result<PerformanceData, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+
+        // CPU 使用率：解析 top -n 1 -b 第一行
+        let cpu_usage = execute_shell_command(&mut device, "top -n 1 -b")
+            .ok()
+            .and_then(|(out, _, _)| parse_cpu_usage(&out))
+            .unwrap_or(0.0);
+
+        // 内存：解析 /proc/meminfo
+        let (memory_used, memory_total) = execute_shell_command(&mut device, "cat /proc/meminfo")
+            .ok()
+            .and_then(|(out, _, _)| parse_meminfo(&out))
+            .unwrap_or((0, 0));
+
+        // 温度：dumpsys battery
+        let temperature = execute_shell_command(&mut device, "dumpsys battery")
+            .ok()
+            .and_then(|(out, _, _)| {
+                for line in out.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("temperature:") {
+                        let val = trimmed[12..].trim();
+                        if let Ok(t) = val.parse::<f32>() {
+                            return Some(t / 10.0); // 0.1°C -> °C
+                        }
+                    }
+                }
+                None
+            })
+            .unwrap_or(0.0);
+
+        // 进程列表：top -n 1 -b
+        let processes = execute_shell_command(&mut device, "top -n 1 -b")
+            .ok()
+            .map(|(out, _, _)| parse_process_list(&out))
+            .unwrap_or_default();
+
+        Ok(PerformanceData {
+            cpu_usage,
+            memory_used,
+            memory_total,
+            temperature,
+            processes,
+        })
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 从 top 输出解析 CPU 使用率
+fn parse_cpu_usage(output: &str) -> Option<f32> {
+    // 格式示例: "User 12%, System 8%, IOW 0%, IRQ 0%"
+    for line in output.lines() {
+        if line.contains("User") && line.contains("System") {
+            let mut total = 0.0f32;
+            for part in line.split(',') {
+                let part = part.trim();
+                if let Some(pct_pos) = part.find('%') {
+                    let num_str = part[..pct_pos]
+                        .rsplit(|c: char| c.is_alphabetic() || c == ' ')
+                        .next()?;
+                    if let Ok(v) = num_str.trim().parse::<f32>() {
+                        total += v;
+                    }
+                }
+            }
+            return Some(total);
+        }
+    }
+    None
+}
+
+/// 从 /proc/meminfo 解析内存信息，返回 (used_kb, total_kb)
+fn parse_meminfo(output: &str) -> Option<(u64, u64)> {
+    let mut total = 0u64;
+    let mut available = 0u64;
+
+    for line in output.lines() {
+        if line.starts_with("MemTotal:") {
+            total = line
+                .split_whitespace()
+                .nth(1)?
+                .parse::<u64>()
+                .unwrap_or(0);
+        } else if line.starts_with("MemAvailable:") {
+            available = line
+                .split_whitespace()
+                .nth(1)?
+                .parse::<u64>()
+                .unwrap_or(0);
+        }
+    }
+
+    if total > 0 {
+        Some((total - available, total))
+    } else {
+        None
+    }
+}
+
+/// 从 top 输出解析进程列表
+fn parse_process_list(output: &str) -> Vec<ProcessInfo> {
+    let mut processes = Vec::new();
+    let mut header_found = false;
+
+    for line in output.lines() {
+        if !header_found {
+            // 寻找表头行（包含 PID USER 等关键字）
+            if line.contains("PID") && line.contains("USER") && line.contains("CPU") {
+                header_found = true;
+            }
+            continue;
+        }
+
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 9 {
+            let pid = parts[0].parse::<u32>().unwrap_or(0);
+            if pid == 0 {
+                continue;
+            }
+            let user = parts[1].to_string();
+            // CPU% 列位置因版本而异，尝试解析
+            let cpu_percent = parts
+                .iter()
+                .find_map(|p| {
+                    if p.ends_with('%') {
+                        p.trim_end_matches('%').parse::<f32>().ok()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0.0);
+
+            // 内存列（RSS，KB）
+            let memory_kb = parts
+                .iter()
+                .find_map(|p| {
+                    if p.ends_with('K') || p.ends_with('k') {
+                        p.trim_end_matches(|c| c == 'K' || c == 'k')
+                            .parse::<u64>()
+                            .ok()
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0);
+
+            // 进程名是最后一列
+            let name = parts.last().unwrap_or(&"").to_string();
+
+            processes.push(ProcessInfo {
+                pid,
+                user,
+                cpu_percent,
+                memory_kb,
+                name,
+            });
+        }
+    }
+
+    // 按 CPU 使用率降序排列，取前 20 个
+    processes.sort_by(|a, b| {
+        b.cpu_percent
+            .partial_cmp(&a.cpu_percent)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    processes.truncate(20);
+    processes
+}
+
+// ============================================
+// 命令历史
+// ============================================
+
+/// 命令历史记录条目
+#[derive(Serialize, Clone, Debug)]
+pub struct CommandHistoryEntry {
+    pub command: String,
+    pub stdout: String,
+    pub stderr: String,
+    pub exit_code: i32,
+    pub timestamp: String,
+    pub device_id: String,
+}
+
+/// 命令历史状态管理
+pub struct CommandHistoryState {
+    pub entries: std::sync::Mutex<Vec<CommandHistoryEntry>>,
+}
+
+/// 创建命令历史状态
+pub fn create_command_history_state() -> Arc<CommandHistoryState> {
+    Arc::new(CommandHistoryState {
+        entries: std::sync::Mutex::new(Vec::new()),
+    })
+}
+
+/// 记录命令到历史（在 execute_adb 中自动调用）
+pub fn record_command(
+    state: &CommandHistoryState,
+    command: &str,
+    result: &AdbResult,
+    device_id: &str,
+) {
+    let entry = CommandHistoryEntry {
+        command: command.to_string(),
+        stdout: result.stdout.clone(),
+        stderr: result.stderr.clone(),
+        exit_code: result.exit_code,
+        timestamp: {
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default();
+            format!("{}", now.as_secs())
+        },
+        device_id: device_id.to_string(),
+    };
+
+    let mut entries = state.entries.lock().unwrap();
+    entries.insert(0, entry); // 最新的在前面
+    // 限制容量 100 条
+    if entries.len() > 100 {
+        entries.truncate(100);
+    }
+}
+
+/// 获取命令历史
+#[tauri::command]
+pub async fn get_command_history(
+    state: State<'_, Arc<CommandHistoryState>>,
+) -> Result<Vec<CommandHistoryEntry>, String> {
+    let entries = state.entries.lock().unwrap();
+    Ok(entries.clone())
+}
+
+/// 清空命令历史
+#[tauri::command]
+pub async fn clear_command_history(
+    state: State<'_, Arc<CommandHistoryState>>,
+) -> Result<(), String> {
+    let mut entries = state.entries.lock().unwrap();
+    entries.clear();
+    Ok(())
 }
 
 // ============================================

@@ -136,3 +136,92 @@ export interface CommandTemplate {
   builtin?: boolean;   // 内置命令不可删除
   favorite?: boolean;  // 收藏星标
 }
+
+// ============================================
+// 日志查看
+// ============================================
+
+/** 日志级别 */
+export type LogLevel = 'V' | 'D' | 'I' | 'W' | 'E' | 'F';
+
+/** 解析后的单条日志 */
+export interface LogEntry {
+  time: string;
+  pid: number;
+  tid: number;
+  level: LogLevel;
+  tag: string;
+  message: string;
+  raw: string; // 原始行文本
+}
+
+// ============================================
+// Shell 终端
+// ============================================
+
+/** 终端行类型 */
+export type TerminalLineType = 'command' | 'output' | 'error' | 'info';
+
+/** 终端单行记录 */
+export interface TerminalLine {
+  type: TerminalLineType;
+  text: string;
+  timestamp: number;
+}
+
+// ============================================
+// 截图录屏
+// ============================================
+
+/** 截图结果（base64 编码 PNG） */
+export interface ScreenshotResult {
+  /** base64 编码的 PNG 数据 */
+  data: string;
+  width: number;
+  height: number;
+}
+
+/** 录屏状态 */
+export interface RecordState {
+  recording: boolean;
+  /** 录制开始时间戳（秒） */
+  start_time: number | null;
+  /** 设备端文件路径 */
+  device_path: string | null;
+}
+
+// ============================================
+// 性能监控
+// ============================================
+
+/** 单个进程信息 */
+export interface ProcessInfo {
+  pid: number;
+  user: string;
+  cpu_percent: number;
+  memory_kb: number;
+  name: string;
+}
+
+/** 性能数据快照 */
+export interface PerformanceData {
+  cpu_usage: number;       // CPU 使用率百分比
+  memory_used: number;     // 已用内存 KB
+  memory_total: number;    // 总内存 KB
+  temperature: number;     // 温度 °C
+  processes: ProcessInfo[];
+}
+
+// ============================================
+// 命令历史
+// ============================================
+
+/** 命令历史记录条目 */
+export interface CommandHistoryEntry {
+  command: string;
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  timestamp: string;
+  device_id: string;
+}

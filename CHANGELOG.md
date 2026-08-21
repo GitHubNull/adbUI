@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.5.0] - 2026-08-21
+
+### Added
+
+- 新增日志查看模块：`LogViewer` 视图 + `useLogs` 组合式函数 + 后端 `get_device_logs` 命令，支持实时查看设备日志输出
+- 新增 Shell 终端模块：`ShellTerminal` 视图 + `useShell` 组合式函数，基于 `execute_adb` 提供交互式命令终端，支持命令历史、上下键回看与错误高亮
+- 新增截图录屏模块：`ScreenshotRecorder` 视图 + `useScreenshot` 组合式函数 + 后端 `take_screenshot` / `save_screenshot` / `start_screen_record` / `stop_screen_record` 命令，支持设备截图预览与本地保存、屏幕录制启停（`save_screenshot` 通过 `tauri-plugin-dialog` 选择保存路径）
+- 新增性能监控模块：`PerformanceMonitor` 视图 + `usePerformance` 组合式函数 + 后端 `get_performance_data` 命令，聚合 top / dumpsys 输出展示 CPU、内存等性能指标
+- 新增命令历史模块：`CommandHistoryView` 视图 + `useCommandHistory` 组合式函数 + 后端 `get_command_history` / `clear_command_history` 命令，记录并展示本会话执行过的 ADB 命令，支持清空
+- 后端 `adb.rs` 新增截图 base64 解码与 PNG 编码保存（新增 `base64`、`image` 依赖）及命令历史 `Mutex` 状态管理（`create_command_history_state`）
+
 ## [0.4.0] - 2026-08-21
 
 ### Added

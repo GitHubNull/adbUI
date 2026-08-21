@@ -12,6 +12,11 @@ import ScriptAutomation from './views/ScriptAutomation.vue';
 import CommandLibrary from './views/CommandLibrary.vue';
 import DeviceInfoReport from './views/DeviceInfoReport.vue';
 import Settings from './views/Settings.vue';
+import LogViewer from './views/LogViewer.vue';
+import ShellTerminal from './views/ShellTerminal.vue';
+import ScreenshotRecorder from './views/ScreenshotRecorder.vue';
+import PerformanceMonitor from './views/PerformanceMonitor.vue';
+import CommandHistoryView from './views/CommandHistoryView.vue';
 import { useDevices } from './composables/useDevices';
 import { useToast } from 'primevue/usetoast';
 
@@ -104,6 +109,36 @@ function showToast(message: string, severity: string) {
 
       <DeviceInfoReport
         v-else-if="currentView === 'device-info'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <LogViewer
+        v-else-if="currentView === 'logs'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <ShellTerminal
+        v-else-if="currentView === 'shell'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <ScreenshotRecorder
+        v-else-if="currentView === 'screenshots'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <PerformanceMonitor
+        v-else-if="currentView === 'perf'"
+        :selected-device="selectedDevice"
+        @toast="showToast"
+      />
+
+      <CommandHistoryView
+        v-else-if="currentView === 'history'"
         :selected-device="selectedDevice"
         @toast="showToast"
       />
