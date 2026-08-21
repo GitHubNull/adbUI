@@ -20,6 +20,8 @@ import SelectButton from 'primevue/selectbutton';
 import InputNumber from 'primevue/inputnumber';
 import Slider from 'primevue/slider';
 import Dropdown from 'primevue/dropdown';
+import Drawer from 'primevue/drawer';
+import VirtualScroller from 'primevue/virtualscroller';
 
 // PrimeVue Styles
 import 'primeicons/primeicons.css';
@@ -54,6 +56,8 @@ app.component('SelectButton', SelectButton);
 app.component('InputNumber', InputNumber);
 app.component('Slider', Slider);
 app.component('Dropdown', Dropdown);
+app.component('Drawer', Drawer);
+app.component('VirtualScroller', VirtualScroller);
 
 // Register directives
 app.directive('tooltip', Tooltip);

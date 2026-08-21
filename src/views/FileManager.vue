@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import type { DeviceInfo } from '../types/device';
 import { useFiles } from '../composables/useFiles';
 
@@ -21,7 +21,54 @@ const {
   navigateUp,
   pullFile,
   pushFile,
+  isImageFile,
+  fetchImagePreview,
 } = useFiles();
+
+// 文件类型筛选
+const FILE_TYPE_FILTERS = [
+  { label: '全部', value: 'all' },
+  { label: '图片', value: 'image' },
+  { label: '视频', value: 'video' },
+  { label: '音频', value: 'audio' },
+  { label: '文档', value: 'document' },
+  { label: '压缩包', value: 'archive' },
+  { label: 'APK', value: 'apk' },
+];
+
+const activeFileType = ref('all');
+
+const filteredFiles = computed(() => {
+  if (activeFileType.value === 'all') return files.value;
+  return files.value.filter((f) => {
+    if (f.is_dir) return true; // 目录始终显示
+    const name = f.name.toLowerCase();
+    switch (activeFileType.value) {
+      case 'image':
+        return isImageFile(f.name);
+      case 'video':
+        return name.endsWith('.mp4') || name.endsWith('.avi') || name.endsWith('.mkv') || name.endsWith('.mov');
+      case 'audio':
+        return name.endsWith('.mp3') || name.endsWith('.wav') || name.endsWith('.flac') || name.endsWith('.aac');
+      case 'document':
+        return name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.pdf') || name.endsWith('.doc') || name.endsWith('.docx');
+      case 'archive':
+        return name.endsWith('.zip') || name.endsWith('.tar') || name.endsWith('.gz') || name.endsWith('.rar') || name.endsWith('.7z');
+      case 'apk':
+        return name.endsWith('.apk');
+      default:
+        return true;
+    }
+  });
+});
+
+// 图片预览状态
+const previewVisible = ref(false);
+const previewLoading = ref(false);
+const previewError = ref<string | null>(null);
+const previewSrc = ref('');
+const previewFileName = ref('');
+const previewZoom = ref(1);
 
 // 监听选中设备变化
 watch(
@@ -53,7 +100,7 @@ function getFileIcon(item: { is_dir: boolean; name: string }): string {
   if (item.name.endsWith('.apk')) return 'pi pi-android';
   if (item.name.endsWith('.txt') || item.name.endsWith('.md')) return 'pi pi-file-edit';
   if (item.name.endsWith('.zip') || item.name.endsWith('.tar') || item.name.endsWith('.gz')) return 'pi pi-box';
-  if (item.name.endsWith('.jpg') || item.name.endsWith('.png') || item.name.endsWith('.gif')) return 'pi pi-image';
+  if (isImageFile(item.name)) return 'pi pi-image';
   if (item.name.endsWith('.mp4') || item.name.endsWith('.avi') || item.name.endsWith('.mkv')) return 'pi pi-video';
   if (item.name.endsWith('.mp3') || item.name.endsWith('.wav') || item.name.endsWith('.flac')) return 'pi pi-volume-up';
   return 'pi pi-file';
@@ -61,19 +108,32 @@ function getFileIcon(item: { is_dir: boolean; name: string }): string {
 
 async function onNavigateTo(path: string) {
   if (props.selectedDevice) {
-    await navigateTo(props.selectedDevice.id, path);
+    try {
+      await navigateTo(props.selectedDevice.id, path);
+    } catch (err) {
+      emit('toast', `导航失败: ${err}`, 'error');
+    }
   }
 }
 
 async function onNavigateUp() {
   if (props.selectedDevice) {
-    await navigateUp(props.selectedDevice.id);
+    try {
+      await navigateUp(props.selectedDevice.id);
+    } catch (err) {
+      emit('toast', `导航失败: ${err}`, 'error');
+    }
   }
 }
 
 async function onRefresh() {
   if (props.selectedDevice) {
-    await fetchFiles(props.selectedDevice.id);
+    try {
+      await fetchFiles(props.selectedDevice.id);
+      emit('toast', '刷新成功', 'success');
+    } catch (err) {
+      emit('toast', `刷新失败: ${err}`, 'error');
+    }
   }
 }
 
@@ -99,6 +159,58 @@ async function onUpload() {
     }
   } catch (err) {
     emit('toast', String(err), 'error');
+  }
+}
+
+// 双击文件/目录处理
+function onRowDoubleClick(event: { data: { path: string; name: string; is_dir: boolean } }) {
+  const item = event.data;
+  if (item.is_dir) {
+    onNavigateTo(item.path);
+  } else if (isImageFile(item.name)) {
+    openImagePreview(item.path, item.name);
+  }
+}
+
+// 打开图片预览
+async function openImagePreview(path: string, name: string) {
+  if (!props.selectedDevice) return;
+  previewVisible.value = true;
+  previewLoading.value = true;
+  previewError.value = null;
+  previewSrc.value = '';
+  previewFileName.value = name;
+  previewZoom.value = 1;
+
+  try {
+    previewSrc.value = await fetchImagePreview(props.selectedDevice.id, path);
+  } catch (err) {
+    previewError.value = String(err);
+  } finally {
+    previewLoading.value = false;
+  }
+}
+
+// 缩放控制
+function zoomIn() {
+  previewZoom.value = Math.min(previewZoom.value + 0.25, 5);
+}
+
+function zoomOut() {
+  previewZoom.value = Math.max(previewZoom.value - 0.25, 0.25);
+}
+
+function zoomReset() {
+  previewZoom.value = 1;
+}
+
+// 滚轮缩放
+function onWheel(e: WheelEvent) {
+  e.preventDefault();
+  if (e.deltaY < 0) {
+    zoomIn();
+  } else {
+    zoomOut();
   }
 }
 </script>
@@ -151,21 +263,37 @@ async function onUpload() {
       </span>
     </div>
 
+    <!-- 文件类型筛选 -->
+    <div class="filter-bar">
+      <SelectButton
+        v-model="activeFileType"
+        :options="FILE_TYPE_FILTERS"
+        option-label="label"
+        option-value="value"
+      />
+    </div>
+
     <!-- File List -->
     <div class="file-list-panel">
       <DataTable
         v-if="props.selectedDevice"
-        :value="files"
+        :value="filteredFiles"
         striped-rows
         class="file-table"
+        :loading="loading"
+        paginator
+        :rows="50"
+        :rows-per-page-options="[20, 50, 100]"
+        @row-dblclick="onRowDoubleClick"
       >
-        <Column field="name" header="名称">
+        <Column field="name" header="名称" sortable>
           <template #body="{ data }">
             <div class="file-name-cell">
               <i :class="getFileIcon(data)" class="file-icon"></i>
               <span
-                :class="{ 'dir-name': data.is_dir }"
+                :class="{ 'dir-name': data.is_dir, 'image-name': !data.is_dir && isImageFile(data.name) }"
                 @click="data.is_dir ? onNavigateTo(data.path) : null"
+                @dblclick="!data.is_dir && isImageFile(data.name) ? openImagePreview(data.path, data.name) : null"
               >
                 {{ data.name }}
               </span>
@@ -173,7 +301,7 @@ async function onUpload() {
           </template>
         </Column>
 
-        <Column field="size" header="大小" style="width: 120px">
+        <Column field="size" header="大小" style="width: 120px" sortable>
           <template #body="{ data }">
             {{ formatSize(data.size) }}
           </template>
@@ -185,7 +313,7 @@ async function onUpload() {
           </template>
         </Column>
 
-        <Column field="modified_time" header="修改时间" style="width: 160px" />
+        <Column field="modified_time" header="修改时间" style="width: 160px" sortable />
 
         <Column header="操作" style="width: 100px">
           <template #body="{ data }">
@@ -214,6 +342,43 @@ async function onUpload() {
         <p>当前目录下没有文件或子目录</p>
       </div>
     </div>
+
+    <!-- 图片预览模态框 -->
+    <Dialog
+      v-model:visible="previewVisible"
+      :header="previewFileName"
+      :modal="true"
+      :style="{ width: '90vw', height: '90vh' }"
+      :maximizable="true"
+      class="image-preview-dialog"
+    >
+      <div class="preview-container" @wheel="onWheel">
+        <div v-if="previewLoading" class="preview-loading">
+          <ProgressSpinner />
+          <span>加载中...</span>
+        </div>
+        <div v-else-if="previewError" class="preview-error">
+          <i class="pi pi-exclamation-triangle"></i>
+          <p>{{ previewError }}</p>
+        </div>
+        <img
+          v-else-if="previewSrc"
+          :src="previewSrc"
+          :alt="previewFileName"
+          class="preview-image"
+          :style="{ transform: `scale(${previewZoom})` }"
+        />
+      </div>
+      <template #footer>
+        <div class="preview-toolbar">
+          <Button icon="pi pi-search-minus" text @click="zoomOut" />
+          <span class="zoom-level">{{ Math.round(previewZoom * 100) }}%</span>
+          <Button icon="pi pi-search-plus" text @click="zoomIn" />
+          <Button label="重置" text @click="zoomReset" />
+          <Button label="关闭" icon="pi pi-times" @click="previewVisible = false" />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -293,6 +458,23 @@ async function onUpload() {
   color: var(--text-color-secondary);
 }
 
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-bar :deep(.p-selectbutton) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.filter-bar :deep(.p-selectbutton .p-button) {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
 .file-list-panel {
   flex: 1;
   min-height: 0;
@@ -324,6 +506,68 @@ async function onUpload() {
 
 .dir-name:hover {
   text-decoration: underline;
+}
+
+.image-name {
+  cursor: zoom-in;
+}
+
+.image-name:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* 图片预览模态框 */
+.preview-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  overflow: auto;
+  background: var(--surface-100);
+  border-radius: 4px;
+}
+
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  color: var(--text-color-secondary);
+}
+
+.preview-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--red-500);
+}
+
+.preview-error i {
+  font-size: 3rem;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.zoom-level {
+  min-width: 50px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
 }
 
 .font-mono {

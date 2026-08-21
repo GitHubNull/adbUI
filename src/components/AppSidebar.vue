@@ -15,14 +15,10 @@ const navItems: NavItem[] = [
   { label: 'Shell 终端', icon: 'pi pi-terminal', view: 'shell' },
   { label: '截图录屏', icon: 'pi pi-camera', view: 'screenshots' },
   { label: '性能监控', icon: 'pi pi-chart-line', view: 'perf' },
-  { label: '命令历史', icon: 'pi pi-history', view: 'history' },
   { label: '任务中心', icon: 'pi pi-check-circle', view: 'tasks' },
-  { label: '设备信息', icon: 'pi pi-info-circle', view: 'device-info' },
   { label: '显示调节', icon: 'pi pi-desktop', view: 'display' },
   { label: '电池模拟', icon: 'pi pi-battery', view: 'battery' },
-  { label: '设备控制', icon: 'pi pi-sliders-h', view: 'device-control' },
   { label: '自动化脚本', icon: 'pi pi-code', view: 'scripts' },
-  { label: '常用命令库', icon: 'pi pi-bookmark', view: 'command-lib' },
 ];
 
 const activeView = ref('devices');
@@ -88,6 +84,7 @@ function navigate(view: string) {
   flex-direction: column;
   width: 220px;
   height: 100vh;
+  min-height: 0;
   background: var(--surface-card);
   border-right: 1px solid var(--surface-200);
   transition: width 0.3s ease;
@@ -131,6 +128,7 @@ function navigate(view: string) {
 
 .sidebar-nav {
   flex: 1;
+  min-height: 0;
   padding: 0.75rem 0.5rem;
   overflow-y: auto;
   display: flex;
@@ -184,6 +182,7 @@ function navigate(view: string) {
 .sidebar-footer {
   padding: 0.75rem 0.5rem;
   border-top: 1px solid var(--surface-200);
+  flex-shrink: 0;
 }
 
 /* Scrollbar styling */

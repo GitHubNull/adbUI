@@ -2,7 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type { DeviceInfo, DeviceDetail, AdbResult } from '../types/device';
 
-const POLLING_INTERVAL = 3000; // 3 seconds
+const POLLING_INTERVAL = 5000; // 5 seconds
 
 // Detect if running inside Tauri
 function isTauri(): boolean {
@@ -75,7 +75,12 @@ export function useDevices() {
   function startPolling() {
     if (pollingTimer) return;
     fetchDevices(); // Immediate first fetch
-    pollingTimer = setInterval(fetchDevices, POLLING_INTERVAL);
+    pollingTimer = setInterval(() => {
+      // 页面隐藏时暂停轮询
+      if (document.visibilityState === 'visible') {
+        fetchDevices();
+      }
+    }, POLLING_INTERVAL);
   }
 
   function stopPolling() {

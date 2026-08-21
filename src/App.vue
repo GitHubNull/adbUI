@@ -7,16 +7,12 @@ import FileManager from './views/FileManager.vue';
 import TaskCenter from './views/TaskCenter.vue';
 import DisplaySettings from './views/DisplaySettings.vue';
 import BatterySimulator from './views/BatterySimulator.vue';
-import DeviceControl from './views/DeviceControl.vue';
 import ScriptAutomation from './views/ScriptAutomation.vue';
-import CommandLibrary from './views/CommandLibrary.vue';
-import DeviceInfoReport from './views/DeviceInfoReport.vue';
 import Settings from './views/Settings.vue';
 import LogViewer from './views/LogViewer.vue';
 import ShellTerminal from './views/ShellTerminal.vue';
 import ScreenshotRecorder from './views/ScreenshotRecorder.vue';
 import PerformanceMonitor from './views/PerformanceMonitor.vue';
-import CommandHistoryView from './views/CommandHistoryView.vue';
 import { useDevices } from './composables/useDevices';
 import { useToast } from 'primevue/usetoast';
 
@@ -59,6 +55,7 @@ function showToast(message: string, severity: string) {
         :detail-loading="detailLoading"
         @select="selectDevice"
         @refresh="refreshDevices"
+        @toast="showToast"
       />
 
       <AppManager
@@ -89,26 +86,8 @@ function showToast(message: string, severity: string) {
         @toast="showToast"
       />
 
-      <DeviceControl
-        v-else-if="currentView === 'device-control'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
-
       <ScriptAutomation
         v-else-if="currentView === 'scripts'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
-
-      <CommandLibrary
-        v-else-if="currentView === 'command-lib'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
-
-      <DeviceInfoReport
-        v-else-if="currentView === 'device-info'"
         :selected-device="selectedDevice"
         @toast="showToast"
       />
@@ -133,12 +112,6 @@ function showToast(message: string, severity: string) {
 
       <PerformanceMonitor
         v-else-if="currentView === 'perf'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
-
-      <CommandHistoryView
-        v-else-if="currentView === 'history'"
         :selected-device="selectedDevice"
         @toast="showToast"
       />

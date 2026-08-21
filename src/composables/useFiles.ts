@@ -35,9 +35,23 @@ const MOCK_FILE_TREE: Record<string, FileItem[]> = {
     { name: 'app-release.apk', path: '/sdcard/Download/app-release.apk', is_dir: false, size: 15728640, permissions: '-rw-rw----', modified_time: 'Jan 14 12:00' },
     { name: 'document.pdf', path: '/sdcard/Download/document.pdf', is_dir: false, size: 2097152, permissions: '-rw-rw----', modified_time: 'Jan 13 09:40' },
   ],
+  '/sdcard/Pictures': [
+    { name: 'photo1.jpg', path: '/sdcard/Pictures/photo1.jpg', is_dir: false, size: 2048576, permissions: '-rw-rw----', modified_time: 'Jan 15 14:30' },
+    { name: 'screenshot.png', path: '/sdcard/Pictures/screenshot.png', is_dir: false, size: 512000, permissions: '-rw-rw----', modified_time: 'Jan 14 10:15' },
+  ],
+  '/sdcard/DCIM/Camera': [
+    { name: 'IMG_001.jpg', path: '/sdcard/DCIM/Camera/IMG_001.jpg', is_dir: false, size: 3145728, permissions: '-rw-rw----', modified_time: 'Jan 15 09:20' },
+  ],
 };
 
 const DEFAULT_PATH = '/sdcard/';
+
+// 路径缓存（5秒过期）
+const pathCache = new Map<string, { data: FileItem[]; timestamp: number }>();
+const CACHE_TTL = 5000;
+
+// 请求序号防止竞态
+let fetchSeq = 0;
 
 export function useFiles() {
   const files = ref<FileItem[]>([]);
@@ -60,27 +74,48 @@ export function useFiles() {
 
   async function fetchFiles(deviceId: string, path?: string) {
     const targetPath = path || currentPath.value;
+    const cacheKey = `${deviceId}:${targetPath}`;
+    const now = Date.now();
+
+    // 检查缓存
+    const cached = pathCache.get(cacheKey);
+    if (cached && now - cached.timestamp < CACHE_TTL) {
+      files.value = cached.data;
+      currentPath.value = targetPath;
+      return;
+    }
+
+    const seq = ++fetchSeq;
     loading.value = true;
     error.value = null;
 
     try {
       if (isTauri()) {
-        files.value = await invoke<FileItem[]>('list_files', {
+        const result = await invoke<FileItem[]>('list_files', {
           deviceId,
           path: targetPath,
         });
+        // 竞态检查：如果有序号更新的请求，丢弃当前结果
+        if (seq !== fetchSeq) return;
+        files.value = result;
+        pathCache.set(cacheKey, { data: result, timestamp: now });
       } else {
         // 浏览器 mock 模式
         await new Promise((r) => setTimeout(r, 300));
+        if (seq !== fetchSeq) return;
         files.value = MOCK_FILE_TREE[targetPath] || [];
+        pathCache.set(cacheKey, { data: files.value, timestamp: now });
       }
       currentPath.value = targetPath;
     } catch (err) {
+      if (seq !== fetchSeq) return;
       error.value = String(err);
       console.error('Failed to fetch files:', err);
       files.value = [];
     } finally {
-      loading.value = false;
+      if (seq === fetchSeq) {
+        loading.value = false;
+      }
     }
   }
 
@@ -143,6 +178,42 @@ export function useFiles() {
     return { stdout: `(Mock) File pushed to ${remoteDir}`, stderr: '', exit_code: 0 };
   }
 
+  // ============================================
+  // 图片预览
+  // ============================================
+
+  const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'];
+
+  function isImageFile(fileName: string): boolean {
+    const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+    return IMAGE_EXTENSIONS.includes(ext);
+  }
+
+  async function fetchImagePreview(deviceId: string, remotePath: string): Promise<string> {
+    if (isTauri()) {
+      const b64 = await invoke<string>('read_file_base64', {
+        deviceId,
+        remotePath,
+      });
+      // 根据扩展名确定 MIME 类型
+      const ext = remotePath.toLowerCase().slice(remotePath.lastIndexOf('.'));
+      const mimeMap: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml',
+      };
+      const mime = mimeMap[ext] || 'image/png';
+      return `data:${mime};base64,${b64}`;
+    }
+    // Mock 模式：返回 1x1 像素透明 PNG
+    await new Promise((r) => setTimeout(r, 300));
+    return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  }
+
   return {
     files,
     loading,
@@ -154,5 +225,7 @@ export function useFiles() {
     navigateUp,
     pullFile,
     pushFile,
+    isImageFile,
+    fetchImagePreview,
   };
 }

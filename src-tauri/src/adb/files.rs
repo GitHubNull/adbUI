@@ -139,3 +139,39 @@ pub async fn push_file(
     .await
     .map_err(|e| format!("Task join error: {}", e))?
 }
+
+/// 读取远程文件内容并返回 base64 编码（用于图片预览）
+/// 限制文件大小为 10MB，防止内存溢出
+#[tauri::command]
+pub async fn read_file_base64(device_id: String, remote_path: String) -> Result<String, String> {
+    const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024; // 10MB
+
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id, None);
+
+        // 先检查文件大小
+        let (stat_out, _, _) = execute_shell_command(
+            &mut device,
+            &format!("stat -c %s '{}'", remote_path),
+        )?;
+        let file_size: u64 = stat_out.trim().parse().unwrap_or(0);
+        if file_size > MAX_FILE_SIZE {
+            return Err(format!(
+                "文件过大（{} MB），超过预览限制（10 MB）",
+                file_size / 1024 / 1024
+            ));
+        }
+
+        // 使用 pull 读取文件内容到内存
+        let mut buffer = Vec::new();
+        device
+            .pull(&remote_path.as_str(), &mut buffer)
+            .map_err(|e| format!("读取文件失败: {}", e))?;
+
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&buffer);
+        Ok(b64)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}

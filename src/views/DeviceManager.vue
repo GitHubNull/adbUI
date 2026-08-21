@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useDeviceReport } from '../composables/useDeviceReport';
 import type { DeviceInfo, DeviceDetail } from '../types/device';
 
 const props = defineProps<{
@@ -12,7 +13,47 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', device: DeviceInfo): void;
   (e: 'refresh'): void;
+  (e: 'toast', message: string, severity: string): void;
 }>();
+
+// ============ 设备信息报告（从 DeviceInfoReport 合并） ============
+const { report, loading: reportLoading, fetchReport, exportReport } = useDeviceReport();
+const showReport = ref(false);
+
+async function loadReport() {
+  if (!props.selectedDevice) return;
+  await fetchReport(props.selectedDevice.id);
+}
+
+watch(() => props.selectedDevice?.id, () => {
+  if (showReport.value) {
+    loadReport();
+  }
+});
+
+function toggleReport() {
+  showReport.value = !showReport.value;
+  if (showReport.value && !report.value) {
+    loadReport();
+  }
+}
+
+function onExportReport() {
+  const content = exportReport();
+  const blob = new Blob([content], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `device-report-${report.value?.serial || 'unknown'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  emit('toast', '设备报告已导出', 'success');
+}
+
+function batteryStatusLabel(s?: number): string {
+  const map: Record<number, string> = { 2: '充电中', 3: '未充电', 4: '不充电', 5: '已充满' };
+  return s !== undefined ? map[s] || `状态码 ${s}` : '-';
+}
 
 const onlineCount = computed(() => props.devices.filter(d => d.status === 'Online').length);
 const totalCount = computed(() => props.devices.length);
@@ -191,6 +232,125 @@ function getConnectionIcon(connection: string): string {
               </div>
             </div>
           </div>
+
+          <Divider />
+
+          <!-- 完整报告按钮 -->
+          <div class="detail-section">
+            <Button
+              :label="showReport ? '收起报告' : '完整报告'"
+              :icon="showReport ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+              text
+              size="small"
+              @click="toggleReport"
+            />
+          </div>
+
+          <!-- 设备信息报告（从 DeviceInfoReport 合并） -->
+          <template v-if="showReport">
+            <div v-if="reportLoading" class="detail-loading">
+              <ProgressSpinner style="width: 32px; height: 32px" />
+              <span>加载报告中...</span>
+            </div>
+
+            <template v-else-if="report">
+              <div class="detail-section">
+                <h4>系统信息</h4>
+                <div class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">型号</span>
+                    <span class="detail-value">{{ report.model }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">品牌</span>
+                    <span class="detail-value">{{ report.brand }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Android 版本</span>
+                    <span class="detail-value">{{ report.android_version }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">SDK</span>
+                    <span class="detail-value">{{ report.sdk_version }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">构建号</span>
+                    <span class="detail-value font-mono">{{ report.build_number }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">产品名</span>
+                    <span class="detail-value">{{ report.product }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">设备代号</span>
+                    <span class="detail-value">{{ report.device }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">CPU ABI</span>
+                    <span class="detail-value">{{ report.cpu_abi }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">序列号</span>
+                    <span class="detail-value font-mono">{{ report.serial }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <Divider />
+
+              <div class="detail-section">
+                <h4>电池信息</h4>
+                <div v-if="report.battery" class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">电量</span>
+                    <span class="detail-value">{{ report.battery.level }}%</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">温度</span>
+                    <span class="detail-value">{{ (report.battery.temperature / 10).toFixed(1) }}°C</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">充电状态</span>
+                    <span class="detail-value">{{ batteryStatusLabel(report.battery.status) }}</span>
+                  </div>
+                </div>
+                <p v-else class="empty-text">无法读取电池信息</p>
+              </div>
+
+              <Divider />
+
+              <div class="detail-section">
+                <h4>显示信息</h4>
+                <div v-if="report.display" class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">分辨率</span>
+                    <span class="detail-value font-mono">{{ report.display.size }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">密度</span>
+                    <span class="detail-value">{{ report.display.density }}dpi</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">过扫描</span>
+                    <span class="detail-value font-mono">{{ report.display.overscan.join(',') }}</span>
+                  </div>
+                </div>
+                <p v-else class="empty-text">无法读取显示信息</p>
+              </div>
+
+              <Divider />
+
+              <div class="detail-section">
+                <Button
+                  label="导出报告"
+                  icon="pi pi-download"
+                  text
+                  size="small"
+                  @click="onExportReport"
+                />
+              </div>
+            </template>
+          </template>
         </div>
       </div>
     </div>

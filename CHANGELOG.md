@@ -5,6 +5,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.7.0] - 2026-08-22
+
+### Added
+
+- 文件管理器新增图片预览：后端新增 `read_file_base64` 命令（10MB 限制，超出时提示），前端支持双击图片文件在抽屉中预览、缩放查看
+- 文件管理器新增文件类型筛选（图片/视频/音频/文档/压缩包/APK，目录始终显示）
+- 文件列表新增路径缓存（5 秒过期）与请求序号竞态保护，快速切换目录时不再显示过期数据
+- Shell 终端集成常用命令库抽屉（`Drawer`）：支持命令分类浏览、收藏、一键执行与自定义添加命令
+- Shell 终端集成命令历史抽屉：支持历史记录搜索、重跑、复制与清空
+- 脚本自动化新增输入模拟（点击/长按/滑动/keyevent/输入文本，带坐标校验）与设备重启（normal/recovery/bootloader，带确认弹窗）
+- 设备管理器合并设备信息报告展示与导出（原 `DeviceInfoReport` 视图移除）
+
+### Changed
+
+- 视图整合：移除 `DeviceControl` / `CommandLibrary` / `DeviceInfoReport` / `CommandHistoryView` 四个独立视图，其能力合并至设备管理器、Shell 终端与脚本自动化，侧边栏精简
+- 设备轮询优化：轮询间隔从 3 秒调整为 5 秒，页面隐藏（`document.visibilityState`）时暂停轮询
+- 文件导航/刷新失败时通过 Toast 反馈具体错误，成功刷新时提示成功
+- 前端注册 PrimeVue `Drawer` / `VirtualScroller` 组件；侧边栏滚动区域与底部区域 flex 布局修复
+
 ## [0.6.2] - 2026-08-21
 
 ### Changed
