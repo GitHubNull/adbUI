@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.1-test.2] - 2026-08-22
+
+### Added
+
+- 侧边栏激活项新增跑马灯边框动画效果（顶部/右侧/底部/左侧四边依次流光，2s 循环）
+
+### Changed
+
+- 侧边栏导航图标更新：Shell 终端 `pi-terminal` → `pi-code`，电池模拟 `pi-battery` → `pi-bolt`
+
+### Fixed
+
+- Cargo.lock 中 `adbui` 包版本同步对齐为 0.8.1-test.2（此前遗漏同步至 0.8.1-test.1）
+
 ## [0.8.1-test.1] - 2026-08-22
 
 ### Fixed
