@@ -1,0 +1,287 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="icon-title icon-desc">
+  <title id="icon-title">adbUI 钛金属船舵图标</title>
+  <desc id="icon-desc">深色圆角方形背景上，精致钛金属船舵中心带有标准核辐射警告标志的应用图标</desc>
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#161b22;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d1117;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 钛金属主渐变 -->
+    <linearGradient id="titaniumMain" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F0F0F0;stop-opacity:1" />
+      <stop offset="15%" style="stop-color:#D0D0D0;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#E8E8E8;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#B8B8B8;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#D8D8D8;stop-opacity:1" />
+      <stop offset="85%" style="stop-color:#A8A8A8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C8C8C8;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 钛金属暗部 -->
+    <linearGradient id="titaniumDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#989898;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#787878;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#888888;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 钛金属高光 -->
+    <linearGradient id="titaniumLight" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.9" />
+      <stop offset="30%" style="stop-color:#F8F8F8;stop-opacity:0.6" />
+      <stop offset="70%" style="stop-color:#E8E8E8;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#D8D8D8;stop-opacity:0.1" />
+    </linearGradient>
+    
+    <!-- 钛金属径向渐变 -->
+    <radialGradient id="titaniumRadial" cx="30%" cy="30%" r="70%">
+      <stop offset="0%" style="stop-color:#F5F5F5;stop-opacity:1" />
+      <stop offset="40%" style="stop-color:#D0D0D0;stop-opacity:1" />
+      <stop offset="80%" style="stop-color:#A0A0A0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#888888;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- 柔和阴影 -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+    
+    <!-- 金属光泽 -->
+    <filter id="metalGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 细腻拉丝纹理 -->
+    <pattern id="brushedFine" width="2" height="2" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="0" x2="2" y2="0" stroke="#FFFFFF" stroke-width="0.3" opacity="0.15"/>
+      <line x1="0" y1="1" x2="2" y2="1" stroke="#000000" stroke-width="0.3" opacity="0.1"/>
+    </pattern>
+    
+    <!-- 网格纹理 -->
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#21262d" stroke-width="0.5" opacity="0.4"/>
+    </pattern>
+
+    <!-- 圆环金属截面渐变（径向：内缘暗 -> 亮面 -> 中灰 -> 外缘暗，模拟圆环横截面的圆柱受光） -->
+    <radialGradient id="ringMetal" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#888888;stop-opacity:1" />
+      <stop offset="78%" style="stop-color:#6A6A6A;stop-opacity:1" />
+      <stop offset="86%" style="stop-color:#E8E8E8;stop-opacity:1" />
+      <stop offset="92%" style="stop-color:#B0B0B0;stop-opacity:1" />
+      <stop offset="97%" style="stop-color:#7A7A7A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4E4E4E;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 辐条圆柱横向渐变：左亮棱 -> 高光 -> 中灰 -> 右暗棱（光源左上） -->
+    <linearGradient id="spokeMetal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#F4F4F4;stop-opacity:1" />
+      <stop offset="22%" style="stop-color:#DCDCDC;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#AFAFAF;stop-opacity:1" />
+      <stop offset="78%" style="stop-color:#7E7E7E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#5A5A5A;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 辐条顶部金属帽径向渐变（球面受光，高光偏左上） -->
+    <radialGradient id="capMetal" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#E6E6E6;stop-opacity:1" />
+      <stop offset="65%" style="stop-color:#A2A2A2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#666666;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 轮毂金属径向渐变（中心凸起受光） -->
+    <radialGradient id="hubMetal" cx="38%" cy="32%" r="80%">
+      <stop offset="0%" style="stop-color:#F2F2F2;stop-opacity:1" />
+      <stop offset="35%" style="stop-color:#CBCBCB;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#939393;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6A6A6A;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 中心孔内凹阴影 -->
+    <radialGradient id="holeDark" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#05070a;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a2027;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 红木钢琴漆渐变（objectBoundingBox 横向对称圆柱：两棱暗 -> 中间偏左亮面 -> 两棱暗，不含方向性高光，旋转不出错） -->
+    <linearGradient id="woodRed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" style="stop-color:#2a0704;stop-opacity:1" />
+      <stop offset="0.18" style="stop-color:#7e2118;stop-opacity:1" />
+      <stop offset="0.38" style="stop-color:#d96a52;stop-opacity:1" />
+      <stop offset="0.55" style="stop-color:#a32f22;stop-opacity:1" />
+      <stop offset="0.82" style="stop-color:#4a100a;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#1e0402;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 红木球面径向渐变（高光偏左上，用于握柄顶端圆球） -->
+    <radialGradient id="woodBall" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" style="stop-color:#e08a70;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#b03323;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#5c150d;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2a0704;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 外圈红木环截面渐变（径向：内缘暗 -> 亮面 -> 主色 -> 外缘暗） -->
+    <radialGradient id="woodRing" cx="50%" cy="50%" r="50%">
+      <stop offset="0" style="stop-color:#4a0f0a;stop-opacity:1" />
+      <stop offset="0.74" style="stop-color:#671a11;stop-opacity:1" />
+      <stop offset="0.83" style="stop-color:#c8503c;stop-opacity:1" />
+      <stop offset="0.90" style="stop-color:#a32f22;stop-opacity:1" />
+      <stop offset="0.96" style="stop-color:#671a11;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#340905;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 黄铜线性渐变（左上亮 -> 右下暗，用于外圈金箍/金线） -->
+    <linearGradient id="brassLinear" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8e38c;stop-opacity:1" />
+      <stop offset="35%" style="stop-color:#e3c05c;stop-opacity:1" />
+      <stop offset="65%" style="stop-color:#b8860b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6e4f0a;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- 黄铜径向渐变（高光偏左上，用于轮毂/铆钉球面） -->
+    <radialGradient id="brassRadial" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" style="stop-color:#fdf1b4;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#ecd06a;stop-opacity:1" />
+      <stop offset="65%" style="stop-color:#c09220;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7a5a0e;stop-opacity:1" />
+    </radialGradient>
+
+    <!-- 单根辐条模板：光滑红木圆柱杆 + 外端圆柱握柄（顶端圆球，能用手握住的把手），拟物（指向上方） -->
+    <g id="spokeShape">
+      <!-- 内段圆杆：从轮毂(r=42)穿过外圈到外圈内缘(r=128)，圆柱 -->
+      <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+      <!-- 杆身圆柱高光（左棱亮带，柔和） -->
+      <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+      <!-- 握柄：外圈之外加长圆柱（圆角矩形），能用手握住 -->
+      <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+      <!-- 握柄顶端球茎头：径向球面渐变（立体感），加大并套住握柄顶端，球下部暗部自然遮盖接缝 -->
+      <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+      <!-- 球茎头镜面高光斑（小而亮，贴在球面左上方） -->
+      <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+      <!-- 杆与握柄之间的收口环箍 -->
+      <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+    </g>
+
+    <!-- 黄铜铆钉模板：半球铜钉，带底部投影使其“钉入”金箍（位于 r=131） -->
+    <g id="brassRivet">
+      <!-- 投影（右下偏移，产生嵌入感） -->
+      <circle cx="0.8" cy="-130.2" r="3.6" fill="#000000" opacity="0.4"/>
+      <!-- 半球钉头 -->
+      <circle cx="0" cy="-131" r="3.4" fill="url(#brassRadial)"/>
+      <circle cx="0" cy="-131" r="3.4" fill="none" stroke="#5c420a" stroke-width="0.6" opacity="0.8"/>
+      <!-- 镜面高光点 -->
+      <circle cx="-1.1" cy="-132.1" r="1.1" fill="#FFFFFF" opacity="0.9"/>
+    </g>
+
+  </defs>
+  
+  <!-- 圆角方形背景 -->
+  <rect x="48" y="48" width="928" height="928" rx="200" fill="url(#bgGrad)" filter="url(#softShadow)"/>
+  <rect x="48" y="48" width="928" height="928" rx="200" fill="url(#grid)"/>
+  
+  <!-- 内边框装饰 -->
+  <rect x="64" y="64" width="896" height="896" rx="184" fill="none" stroke="#00d4aa" stroke-width="2" opacity="0.2"/>
+  
+  <!-- 中心图标组 -->
+  <g transform="translate(512, 512)" filter="url(#metalGlow)">
+    
+    <!-- 钛金属船舵 -->
+    <g transform="scale(1.7)">
+      
+      <!-- 船舵辐条 - 8根完整杆（最底层，被外圈/内圈/轮毂压住，每45度一根） -->
+      <use href="#spokeShape"/>
+      <use href="#spokeShape" transform="rotate(45)"/>
+      <use href="#spokeShape" transform="rotate(90)"/>
+      <use href="#spokeShape" transform="rotate(135)"/>
+      <use href="#spokeShape" transform="rotate(180)"/>
+      <use href="#spokeShape" transform="rotate(225)"/>
+      <use href="#spokeShape" transform="rotate(270)"/>
+      <use href="#spokeShape" transform="rotate(315)"/>
+      
+      <!-- 船舵外圈：红木厚环 + 外缘黄铜金箍 + 内缘黄铜金线（完整圆环压住辐条） -->
+      <circle cx="0" cy="0" r="119" fill="none" stroke="#1a0503" stroke-width="32" opacity="0.5"/>
+      <circle cx="0" cy="0" r="115" fill="none" stroke="url(#woodRing)" stroke-width="30"/>
+      <!-- 外缘黄铜金箍 -->
+      <circle cx="0" cy="0" r="131" fill="none" stroke="url(#brassLinear)" stroke-width="7"/>
+      <circle cx="0" cy="0" r="134.5" fill="none" stroke="#f8e38c" stroke-width="1" opacity="0.6"/>
+      <!-- 内缘黄铜金线 -->
+      <circle cx="0" cy="0" r="99.5" fill="none" stroke="url(#brassLinear)" stroke-width="3.5"/>
+      
+      <!-- 外圈黄铜铆钉 - 16个（均匀分布在金箍上，错开辐条位置） -->
+      <use href="#brassRivet" transform="rotate(11.25)"/>
+      <use href="#brassRivet" transform="rotate(33.75)"/>
+      <use href="#brassRivet" transform="rotate(56.25)"/>
+      <use href="#brassRivet" transform="rotate(78.75)"/>
+      <use href="#brassRivet" transform="rotate(101.25)"/>
+      <use href="#brassRivet" transform="rotate(123.75)"/>
+      <use href="#brassRivet" transform="rotate(146.25)"/>
+      <use href="#brassRivet" transform="rotate(168.75)"/>
+      <use href="#brassRivet" transform="rotate(191.25)"/>
+      <use href="#brassRivet" transform="rotate(213.75)"/>
+      <use href="#brassRivet" transform="rotate(236.25)"/>
+      <use href="#brassRivet" transform="rotate(258.75)"/>
+      <use href="#brassRivet" transform="rotate(281.25)"/>
+      <use href="#brassRivet" transform="rotate(303.75)"/>
+      <use href="#brassRivet" transform="rotate(326.25)"/>
+      <use href="#brassRivet" transform="rotate(348.75)"/>
+      
+      <!-- 中心轮毂：黄铜多层同心圆 + 切削倒角 + 内凹中心孔 -->
+      <circle cx="0" cy="0" r="50" fill="#1a0f02" opacity="0.45"/>
+      <circle cx="0" cy="0" r="48" fill="url(#brassRadial)"/>
+      <circle cx="0" cy="0" r="48" fill="none" stroke="#6e4f0a" stroke-width="1.5" opacity="0.8"/>
+      <path d="M -33.9,-33.9 A 48,48 0 0 1 33.9,-33.9" fill="none" stroke="#fdf1b4" stroke-width="2" opacity="0.6" transform="rotate(-45)"/>
+      <circle cx="0" cy="0" r="41" fill="url(#brassLinear)"/>
+      <circle cx="0" cy="0" r="41" fill="none" stroke="#7a5a0e" stroke-width="1" opacity="0.7"/>
+      <circle cx="0" cy="0" r="33" fill="#0a0d10"/>
+      <circle cx="0" cy="0" r="33" fill="url(#holeDark)"/>
+      <!-- 内凹孔上壁阴影 + 下壁反光 -->
+      <path d="M -23.3,-23.3 A 33,33 0 0 1 23.3,-23.3" fill="none" stroke="#000000" stroke-width="3" opacity="0.6" transform="rotate(-45)"/>
+      <path d="M -23.3,23.3 A 33,33 0 0 0 23.3,23.3" fill="none" stroke="#c09220" stroke-width="2" opacity="0.4" transform="rotate(-45)"/>
+      
+      <!-- 核辐射警告标志 - 标准黄底黑三叶扇形 -->
+      <g transform="scale(0.7)">
+        <!-- 黄色圆形背景 -->
+        <circle cx="0" cy="0" r="45" fill="#FFEB3B"/>
+        
+        <!-- 黑色外圈边框 -->
+        <circle cx="0" cy="0" r="45" fill="none" stroke="#000000" stroke-width="3"/>
+        
+        <!-- 三叶扇形 - 每个叶片60度，内半径19、外半径38 -->
+        <!-- 上叶片 -->
+        <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000"/>
+        <!-- 右下叶片 -->
+        <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000" transform="rotate(120)"/>
+        <!-- 左下叶片 -->
+        <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000" transform="rotate(240)"/>
+        
+        <!-- 中心黑色圆点 -->
+        <circle cx="0" cy="0" r="8" fill="#000000"/>
+      </g>
+      
+      <!-- 中心高光点 -->
+      <circle cx="-8" cy="-8" r="6" fill="#FFFFFF" opacity="0.3"/>
+      
+    </g>
+    
+    <!-- 青绿色装饰点缀 -->
+    <circle cx="0" cy="0" r="185" fill="none" stroke="#00d4aa" stroke-width="1" opacity="0.1"/>
+    <circle cx="0" cy="0" r="200" fill="none" stroke="#00d4aa" stroke-width="0.5" opacity="0.08"/>
+  </g>
+  
+  <!-- 角落装饰 -->
+  <circle cx="150" cy="150" r="100" fill="#00d4aa" opacity="0.04"/>
+  <circle cx="874" cy="874" r="80" fill="#C0C0C0" opacity="0.03"/>
+  
+  <!-- 底部青绿装饰线 -->
+  <rect x="350" y="900" width="120" height="4" rx="2" fill="#00d4aa" opacity="0.3"/>
+  <rect x="480" y="900" width="60" height="4" rx="2" fill="#C0C0C0" opacity="0.2"/>
+  <rect x="550" y="900" width="100" height="4" rx="2" fill="#00d4aa" opacity="0.2"/>
+</svg>

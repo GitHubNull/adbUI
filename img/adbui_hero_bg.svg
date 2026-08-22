@@ -1,0 +1,304 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1792 1024" width="1792" height="1024" role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">adbUI 项目横幅</title>
+  <desc id="hero-desc">深色背景上展示 Android 设备与桌面端通过 ADB 连接的简洁技术风格横幅，桌面端显示船舵骷髅图标</desc>
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="heroBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#111820;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d1117;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 青绿渐变 -->
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4aa;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00b894;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 琥珀渐变 -->
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0b429;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e09f3e;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Android 绿色 -->
+    <linearGradient id="androidGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3DDC84;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#34A853;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 钛金属 -->
+    <linearGradient id="titanium" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8E8E8;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#C0C0C0;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F5F5F5;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#A8A8A8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D0D0D0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 发光滤镜 -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- 网格纹理 -->
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#21262d" stroke-width="0.5" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="1792" height="1024" fill="url(#heroBg)"/>
+  <rect width="1792" height="1024" fill="url(#grid)"/>
+  
+  <!-- 装饰圆形光晕 -->
+  <circle cx="200" cy="150" r="300" fill="#00d4aa" opacity="0.03"/>
+  <circle cx="1600" cy="850" r="250" fill="#f0b429" opacity="0.03"/>
+  <circle cx="1400" cy="200" r="180" fill="#3DDC84" opacity="0.02"/>
+  
+  <!-- 左侧：Android 手机 -->
+  <g transform="translate(280, 300)" filter="url(#glow)">
+    <!-- 手机机身 -->
+    <rect x="0" y="0" width="280" height="520" rx="32" fill="none" stroke="url(#cyanGrad)" stroke-width="3" opacity="0.9"/>
+    <!-- 屏幕 -->
+    <rect x="16" y="50" width="248" height="420" rx="12" fill="#00d4aa" opacity="0.06"/>
+    <!-- 刘海 -->
+    <rect x="100" y="15" width="80" height="22" rx="11" fill="#00d4aa" opacity="0.3"/>
+    <!-- 底部指示条 -->
+    <rect x="110" y="490" width="60" height="4" rx="2" fill="#00d4aa" opacity="0.4"/>
+    
+    <!-- 屏幕内的 Android 机器人 -->
+    <g transform="translate(80, 180) scale(0.9)" opacity="0.7">
+      <!-- 头部 -->
+      <path d="M 20 30 Q 20 0 60 0 Q 100 0 100 30 L 100 55 L 20 55 Z" fill="url(#androidGreen)"/>
+      <!-- 触角 -->
+      <line x1="40" y1="8" x2="25" y2="-15" stroke="url(#androidGreen)" stroke-width="5" stroke-linecap="round"/>
+      <line x1="80" y1="8" x2="95" y2="-15" stroke="url(#androidGreen)" stroke-width="5" stroke-linecap="round"/>
+      <!-- 眼睛 -->
+      <circle cx="45" cy="28" r="8" fill="#0d1117"/>
+      <circle cx="75" cy="28" r="8" fill="#0d1117"/>
+      <!-- 身体 -->
+      <rect x="20" y="60" width="80" height="90" rx="12" fill="url(#androidGreen)"/>
+      <!-- 手臂 -->
+      <rect x="-5" y="70" width="20" height="55" rx="10" fill="url(#androidGreen)"/>
+      <rect x="105" y="70" width="20" height="55" rx="10" fill="url(#androidGreen)"/>
+      <!-- 腿 -->
+      <rect x="35" y="155" width="18" height="45" rx="9" fill="url(#androidGreen)"/>
+      <rect x="67" y="155" width="18" height="45" rx="9" fill="url(#androidGreen)"/>
+    </g>
+    
+    <!-- 手机底部 adb 状态 -->
+    <rect x="50" y="420" width="180" height="28" rx="6" fill="#0d1117" stroke="#00d4aa" stroke-width="1" opacity="0.6"/>
+    <circle cx="70" cy="434" r="5" fill="#00d4aa" opacity="0.8"/>
+    <rect x="85" y="428" width="80" height="6" rx="3" fill="#00d4aa" opacity="0.5"/>
+    <rect x="85" y="438" width="50" height="4" rx="2" fill="#00d4aa" opacity="0.3"/>
+  </g>
+  
+  <!-- 右侧：桌面显示器 -->
+  <g transform="translate(1180, 260)" filter="url(#glow)">
+    <!-- 显示器边框 -->
+    <rect x="0" y="0" width="420" height="300" rx="16" fill="none" stroke="url(#amberGrad)" stroke-width="4" opacity="0.9"/>
+    <!-- 屏幕区域 -->
+    <rect x="18" y="18" width="384" height="240" rx="8" fill="#0d1117" opacity="0.8"/>
+    <!-- 支架 -->
+    <path d="M 190 300 L 190 350 L 230 350 L 230 300" fill="none" stroke="url(#amberGrad)" stroke-width="4" opacity="0.7"/>
+    <rect x="150" y="350" width="120" height="10" rx="5" fill="url(#amberGrad)" opacity="0.5"/>
+    
+    <!-- 屏幕内容：adbUI 软件界面 -->
+    <g transform="translate(38, 38)">
+      <!-- 窗口标题栏 -->
+      <rect x="0" y="0" width="344" height="28" rx="6" fill="#161b22" stroke="#21262d" stroke-width="1"/>
+      <circle cx="16" cy="14" r="5" fill="#ff5f56" opacity="0.8"/>
+      <circle cx="32" cy="14" r="5" fill="#ffbd2e" opacity="0.8"/>
+      <circle cx="48" cy="14" r="5" fill="#27ca3f" opacity="0.8"/>
+      <text x="170" y="18" font-family="system-ui, sans-serif" font-size="11" fill="#8b949e" text-anchor="middle">adbUI</text>
+      
+      <!-- 左侧边栏 -->
+      <rect x="0" y="28" width="70" height="192" rx="0" fill="#0d1117"/>
+      <rect x="8" y="40" width="54" height="8" rx="2" fill="#00d4aa" opacity="0.4"/>
+      <rect x="8" y="56" width="40" height="6" rx="1" fill="#8b949e" opacity="0.3"/>
+      <rect x="8" y="70" width="45" height="6" rx="1" fill="#8b949e" opacity="0.3"/>
+      <rect x="8" y="84" width="35" height="6" rx="1" fill="#8b949e" opacity="0.3"/>
+      <rect x="8" y="98" width="48" height="6" rx="1" fill="#8b949e" opacity="0.3"/>
+      
+      <!-- 主内容区：显示红木船舵+核辐射图标 -->
+      <g transform="translate(140, 90) scale(0.28)">
+        <!-- 船舵辐条 - 8根红木圆柱 -->
+        <g id="spokes">
+          <!-- 辐条1 -->
+          <g transform="rotate(0)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条2 -->
+          <g transform="rotate(45)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条3 -->
+          <g transform="rotate(90)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条4 -->
+          <g transform="rotate(135)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条5 -->
+          <g transform="rotate(180)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条6 -->
+          <g transform="rotate(225)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条7 -->
+          <g transform="rotate(270)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+          <!-- 辐条8 -->
+          <g transform="rotate(315)">
+            <rect x="-6" y="-128" width="12" height="86" rx="6" fill="url(#woodRed)"/>
+            <rect x="-4" y="-126" width="3" height="82" rx="1.5" fill="#FFFFFF" opacity="0.28"/>
+            <rect x="-7" y="-168" width="14" height="44" rx="6" fill="url(#woodRed)"/>
+            <ellipse cx="0" cy="-170" rx="10.5" ry="11.5" fill="url(#woodBall)"/>
+            <ellipse cx="-3.5" cy="-174" rx="2.5" ry="3.2" fill="#FFFFFF" opacity="0.85"/>
+            <rect x="-8.5" y="-130" width="17" height="6" rx="3" fill="url(#woodRed)" stroke="#2a0704" stroke-width="0.6" opacity="0.9"/>
+          </g>
+        </g>
+        
+        <!-- 船舵外圈：红木厚环 + 黄铜金箍 -->
+        <circle cx="0" cy="0" r="119" fill="none" stroke="#1a0503" stroke-width="32" opacity="0.5"/>
+        <circle cx="0" cy="0" r="115" fill="none" stroke="url(#woodRing)" stroke-width="30"/>
+        <!-- 外缘黄铜金箍 -->
+        <circle cx="0" cy="0" r="131" fill="none" stroke="url(#brassLinear)" stroke-width="7"/>
+        <circle cx="0" cy="0" r="134.5" fill="none" stroke="#f8e38c" stroke-width="1" opacity="0.6"/>
+        <!-- 内缘黄铜金线 -->
+        <circle cx="0" cy="0" r="99.5" fill="none" stroke="url(#brassLinear)" stroke-width="3.5"/>
+        
+        <!-- 外圈黄铜铆钉 - 16个 -->
+        <use href="#brassRivet" transform="rotate(11.25)"/>
+        <use href="#brassRivet" transform="rotate(33.75)"/>
+        <use href="#brassRivet" transform="rotate(56.25)"/>
+        <use href="#brassRivet" transform="rotate(78.75)"/>
+        <use href="#brassRivet" transform="rotate(101.25)"/>
+        <use href="#brassRivet" transform="rotate(123.75)"/>
+        <use href="#brassRivet" transform="rotate(146.25)"/>
+        <use href="#brassRivet" transform="rotate(168.75)"/>
+        <use href="#brassRivet" transform="rotate(191.25)"/>
+        <use href="#brassRivet" transform="rotate(213.75)"/>
+        <use href="#brassRivet" transform="rotate(236.25)"/>
+        <use href="#brassRivet" transform="rotate(258.75)"/>
+        <use href="#brassRivet" transform="rotate(281.25)"/>
+        <use href="#brassRivet" transform="rotate(303.75)"/>
+        <use href="#brassRivet" transform="rotate(326.25)"/>
+        <use href="#brassRivet" transform="rotate(348.75)"/>
+        
+        <!-- 中心轮毂：黄铜多层同心圆 -->
+        <circle cx="0" cy="0" r="50" fill="#1a0f02" opacity="0.45"/>
+        <circle cx="0" cy="0" r="48" fill="url(#brassRadial)"/>
+        <circle cx="0" cy="0" r="48" fill="none" stroke="#6e4f0a" stroke-width="1.5" opacity="0.8"/>
+        <path d="M -33.9,-33.9 A 48,48 0 0 1 33.9,-33.9" fill="none" stroke="#fdf1b4" stroke-width="2" opacity="0.6" transform="rotate(-45)"/>
+        <circle cx="0" cy="0" r="41" fill="url(#brassLinear)"/>
+        <circle cx="0" cy="0" r="41" fill="none" stroke="#7a5a0e" stroke-width="1" opacity="0.7"/>
+        <circle cx="0" cy="0" r="33" fill="#0a0d10"/>
+        <circle cx="0" cy="0" r="33" fill="url(#holeDark)"/>
+        <!-- 内凹孔上壁阴影 + 下壁反光 -->
+        <path d="M -23.3,-23.3 A 33,33 0 0 1 23.3,-23.3" fill="none" stroke="#000000" stroke-width="3" opacity="0.6" transform="rotate(-45)"/>
+        <path d="M -23.3,23.3 A 33,33 0 0 0 23.3,23.3" fill="none" stroke="#c09220" stroke-width="2" opacity="0.4" transform="rotate(-45)"/>
+        
+        <!-- 核辐射警告标志 - 标准黄底黑三叶扇形 -->
+        <g transform="scale(0.7)">
+          <!-- 黄色圆形背景 -->
+          <circle cx="0" cy="0" r="45" fill="#FFEB3B"/>
+          <!-- 黑色外圈边框 -->
+          <circle cx="0" cy="0" r="45" fill="none" stroke="#000000" stroke-width="3"/>
+          <!-- 三叶扇形 - 每个叶片60度，内半径19、外半径38 -->
+          <!-- 上叶片 -->
+          <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000"/>
+          <!-- 右下叶片 -->
+          <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000" transform="rotate(120)"/>
+          <!-- 左下叶片 -->
+          <path d="M -19,-32.9 A 38,38 0 0 1 19,-32.9 L 9.5,-16.45 A 19,19 0 0 0 -9.5,-16.45 Z" fill="#000000" transform="rotate(240)"/>
+          <!-- 中心黑色圆点 -->
+          <circle cx="0" cy="0" r="8" fill="#000000"/>
+        </g>
+      </g>
+      
+      <!-- 界面底部状态栏 -->
+      <rect x="70" y="200" width="274" height="20" rx="0" fill="#161b22"/>
+      <circle cx="82" cy="210" r="4" fill="#00d4aa" opacity="0.7"/>
+      <rect x="92" y="208" width="60" height="4" rx="2" fill="#8b949e" opacity="0.4"/>
+      <rect x="280" y="208" width="50" height="4" rx="2" fill="#8b949e" opacity="0.3"/>
+    </g>
+  </g>
+  
+  <!-- 中间：数据流连接 -->
+  <g filter="url(#glow)">
+    <!-- 主数据线 -->
+    <path d="M 560 520 Q 720 420 900 500 T 1180 440" fill="none" stroke="url(#cyanGrad)" stroke-width="2.5" opacity="0.6" stroke-dasharray="10,6"/>
+    <path d="M 560 540 Q 750 500 920 540 T 1180 480" fill="none" stroke="url(#amberGrad)" stroke-width="2" opacity="0.5" stroke-dasharray="8,8"/>
+    <path d="M 560 500 Q 680 380 840 430 T 1180 400" fill="none" stroke="#00d4aa" stroke-width="1.5" opacity="0.4" stroke-dasharray="4,8"/>
+    
+    <!-- 数据包 -->
+    <circle cx="680" cy="480" r="8" fill="#00d4aa" opacity="0.8"/>
+    <circle cx="780" cy="460" r="6" fill="#f0b429" opacity="0.7"/>
+    <circle cx="880" cy="490" r="9" fill="#00d4aa" opacity="0.9"/>
+    <circle cx="980" cy="470" r="6" fill="#f0b429" opacity="0.6"/>
+    <circle cx="1080" cy="450" r="7" fill="#00d4aa" opacity="0.7"/>
+    
+    <!-- ADB 命令文字 -->
+    <g opacity="0.5">
+      <text x="720" y="400" font-family="monospace" font-size="14" fill="#00d4aa" opacity="0.6">adb shell</text>
+      <text x="920" y="560" font-family="monospace" font-size="12" fill="#f0b429" opacity="0.5">adb devices</text>
+      <text x="820" y="380" font-family="monospace" font-size="11" fill="#00d4aa" opacity="0.4">adb push</text>
+    </g>
+  </g>
+  
+  <!-- 底部装饰 -->
+  <g opacity="0.3">
+    <rect x="400" y="880" width="100" height="4" rx="2" fill="#00d4aa"/>
+    <rect x="520" y="880" width="50" height="4" rx="2" fill="#f0b429"/>
+    <rect x="590" y="880" width="80" height="4" rx="2" fill="#3DDC84" opacity="0.6"/>
+  </g>
+  
+  <!-- 角落装饰 -->
+  <path d="M 0 0 L 120 0 L 0 120 Z" fill="#00d4aa" opacity="0.05"/>
+  <path d="M 1792 1024 L 1672 1024 L 1792 904 Z" fill="#f0b429" opacity="0.05"/>
+</svg>

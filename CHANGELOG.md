@@ -5,6 +5,14 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.0] - 2026-08-22
+
+### Added
+
+- 品牌视觉更新：新增自定义 adbUI 品牌图标与项目横幅（hero banner）图片资源（SVG + PNG），README 中英文版均引入横幅与图标展示
+- 侧边栏 Logo 由 PrimeIcons 安卓图标替换为自定义品牌 SVG 图标（`adbui-icon.svg`）
+- 应用图标全套更新为新品牌图标（`src-tauri/icons`：32x32 / 128x128 / 128x128@2x / icon.png 等）
+
 ## [0.7.0] - 2026-08-22
 
 ### Added

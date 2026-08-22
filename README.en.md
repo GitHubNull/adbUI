@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="img/adbui_hero_bg.svg" alt="adbUI Project Banner" width="100%"/>
+</div>
+
 # adbUI — Cross-Platform ADB UI Desktop App
 
 **[中文文档](README.md) | English**
@@ -5,6 +9,10 @@
 adbUI is a cross-platform ADB (Android Debug Bridge) UI desktop application built on **Tauri (Rust + Vue)**, providing a graphical interface for device management, device detail inspection, and ADB command execution — replacing tedious command-line operations.
 
 ## Features
+
+<div align="center">
+  <img src="img/adbui_icon.svg" alt="adbUI Icon" width="128" height="128"/>
+</div>
 
 adbUI currently offers **16 feature modules**:
 

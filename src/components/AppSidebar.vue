@@ -38,7 +38,7 @@ function navigate(view: string) {
   <aside class="sidebar" :class="{ collapsed }">
     <div class="sidebar-header">
       <div class="logo">
-        <i class="pi pi-android"></i>
+        <img src="../assets/adbui-icon.svg" alt="adbUI" class="logo-icon" />
         <span v-if="!collapsed" class="logo-text">adbUI</span>
       </div>
       <Button
@@ -108,6 +108,11 @@ function navigate(view: string) {
   align-items: center;
   gap: 0.5rem;
   color: var(--primary-color);
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
 }
 
 .logo i {

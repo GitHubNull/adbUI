@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="img/adbui_hero_bg.svg" alt="adbUI 项目横幅" width="100%"/>
+</div>
+
 # adbUI — 跨平台 ADB UI 桌面应用
 
 **中文 | [English](README.en.md)**
@@ -5,6 +9,10 @@
 adbUI 是一个基于 **Tauri (Rust + Vue)** 的跨平台 ADB (Android Debug Bridge) UI 桌面应用，提供图形化的设备管理、设备详情查看与 ADB 命令执行能力，替代繁琐的命令行操作。
 
 ## 功能特性
+
+<div align="center">
+  <img src="img/adbui_icon.svg" alt="adbUI 图标" width="128" height="128"/>
+</div>
 
 adbUI 目前提供 **16 个功能模块**：
 
