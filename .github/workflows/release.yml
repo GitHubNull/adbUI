@@ -1,0 +1,307 @@
+name: Release
+
+# 触发机制：
+#   1. 推送符合 SemVer 的 Tag（v0.8.0 / v1.0.0-alpha.1 / v2.0.0-beta.2 等）
+#   2. 手动触发（workflow_dispatch），需输入已存在的 SemVer Tag
+on:
+  push:
+    tags:
+      # 严格 SemVer：vMAJOR.MINOR.PATCH，可选 -prerelease 段
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '手动触发：已存在的 SemVer Tag（如 v0.9.0-beta.1）'
+        required: true
+        type: string
+
+env:
+  # 统一解析当前 Tag：push 事件取 ref_name，手动触发取 inputs.tag
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+
+jobs:
+  # ============================================================
+  # Job 1: 质量门禁 —— 类型检查 + 前端构建 + 后端单元测试 + 版本一致性
+  # 任一失败即阻断后续所有 Job
+  # ============================================================
+  gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Validate SemVer tag
+        run: |
+          if ! echo "${RELEASE_TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Tag '${RELEASE_TAG}' 不符合 SemVer 格式（如 v0.9.0 / v1.0.0-beta.1）"
+            exit 1
+          fi
+          echo "Tag 格式合法: ${RELEASE_TAG}"
+
+      - name: Check version consistency
+        run: |
+          TAG_VERSION="${RELEASE_TAG#v}"
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAURI_VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          CARGO_VERSION=$(grep -m1 '^version' src-tauri/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
+          echo "Tag: ${TAG_VERSION} | package.json: ${PKG_VERSION} | tauri.conf.json: ${TAURI_VERSION} | Cargo.toml: ${CARGO_VERSION}"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ] || [ "$TAG_VERSION" != "$TAURI_VERSION" ] || [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "::error::版本号不一致！请同步 package.json / tauri.conf.json / Cargo.toml 与 Tag 版本"
+            exit 1
+          fi
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend type-check & build
+        run: pnpm build
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux system dependencies (for cargo test compile)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Run backend unit tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+  # ============================================================
+  # Job 2: 三平台矩阵构建（tauri-action），产物上传为 artifact
+  # 注意：此 Job 不创建 Release，避免 verify 失败产生半成品 Draft
+  # ============================================================
+  build:
+    name: Build (${{ matrix.platform }})
+    needs: gate
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-22.04
+          - platform: macos
+            os: macos-latest
+          - platform: windows
+            os: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # 不传 releaseId / tagName → 仅构建不上传 Release
+          projectPath: .
+          args: --verbose
+
+      - name: Collect bundles (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          mkdir -p dist-bundle
+          find src-tauri/target/release/bundle -type f \( -name '*.AppImage' -o -name '*.deb' \) -exec cp {} dist-bundle/ \;
+          ls -lh dist-bundle/
+
+      - name: Collect bundles (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          mkdir -p dist-bundle
+          find src-tauri/target/release/bundle -type f -name '*.dmg' -exec cp {} dist-bundle/ \;
+          find src-tauri/target/release/bundle -type d -name '*.app' -exec tar -czf "{}.tar.gz" -C "$(dirname {})" "$(basename {})" \; -exec mv "{}.tar.gz" dist-bundle/ \;
+          ls -lh dist-bundle/
+
+      - name: Collect bundles (Windows)
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          mkdir -p dist-bundle
+          find src-tauri/target/release/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp {} dist-bundle/ \;
+          ls -lh dist-bundle/
+
+      - name: Create source tarball
+        run: git archive --format=tar.gz --prefix=adbui-${RELEASE_TAG#v}/ -o dist-bundle/adbui-${RELEASE_TAG#v}-source.tar.gz ${RELEASE_TAG}
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform }}
+          path: dist-bundle/
+          retention-days: 7
+
+  # ============================================================
+  # Job 3: 产物完整性验证（矩阵同平台），失败则阻断 Release
+  # ============================================================
+  verify:
+    name: Verify (${{ matrix.platform }})
+    needs: build
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            os: ubuntu-22.04
+          - platform: macos
+            os: macos-latest
+          - platform: windows
+            os: windows-latest
+    steps:
+      - name: Checkout (for verify script)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Download bundle artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: bundle-${{ matrix.platform }}
+          path: dist-bundle/
+
+      - name: Verify bundles
+        shell: bash
+        run: bash scripts/verify-bundle.sh ${{ matrix.platform }} dist-bundle/
+
+  # ============================================================
+  # Job 4: 生成 Changelog、创建 GitHub Release、上传全部产物
+  # ============================================================
+  release:
+    name: Publish Release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-all/
+          merge-multiple: true
+
+      - name: Setup Node.js (for changelog script)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Generate changelog
+        run: node scripts/generate-changelog.mjs ${RELEASE_TAG}
+
+      - name: Determine prerelease
+        id: meta
+        run: |
+          if echo "${RELEASE_TAG}" | grep -q '-'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub Release
+        id: gh_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: adbUI ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
+          prerelease: ${{ steps.meta.outputs.prerelease == 'true' }}
+          files: dist-all/*
+          fail_on_unmatched_files: true
+
+      - name: Sync CHANGELOG.md back to default branch
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # 动态解析远程默认分支（master / main 均可）
+          DEFAULT_BRANCH=$(git ls-remote --symref origin HEAD | awk '/^ref:/ {print $2}' | sed 's@refs/heads/@@')
+          echo "默认分支: ${DEFAULT_BRANCH}"
+          # 当前是 detached HEAD（tag），丢弃其上的 CHANGELOG 改动
+          git restore CHANGELOG.md 2>/dev/null || true
+          git fetch origin "${DEFAULT_BRANCH}" --prune
+          git checkout -B sync-changelog "origin/${DEFAULT_BRANCH}"
+          # 在默认分支最新提交上重新生成并幂等插入（脚本对已存在段落会跳过）
+          node scripts/generate-changelog.mjs "${RELEASE_TAG}"
+          git add CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "CHANGELOG.md 无变更，跳过回写"
+            exit 0
+          fi
+          git commit -m "docs(changelog): sync ${RELEASE_TAG} release notes [skip ci]"
+          git push origin "sync-changelog:${DEFAULT_BRANCH}" || echo "::warning::CHANGELOG 回写失败（可能受分支保护限制），请手动同步"
+
+      - name: Output release summary
+        run: |
+          echo "## 发布完成" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 版本: ${RELEASE_TAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 预发布: ${{ steps.meta.outputs.prerelease }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Release: ${{ steps.gh_release.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 产物清单" >> "$GITHUB_STEP_SUMMARY"
+          for f in dist-all/*; do
+            size=$(du -h "$f" | cut -f1)
+            echo "- \`$(basename "$f")\` (${size})" >> "$GITHUB_STEP_SUMMARY"
+          done
