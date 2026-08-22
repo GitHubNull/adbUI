@@ -6,6 +6,14 @@ use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
 use tauri::State;
+use qrcode::QrCode;
+use qrcode::render::svg;
+use rand::Rng;
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use mdns_sd::{ServiceDaemon, ServiceEvent};
+
+const ADB_PAIRING_SERVICE: &str = "_adb-tls-pairing._tcp.local.";
+const ADB_CONNECT_SERVICE: &str = "_adb-tls-connect._tcp.local.";
 
 use super::helpers::*;
 use super::history::{record_command, CommandHistoryState};
@@ -234,6 +242,169 @@ pub async fn scan_network_devices() -> Result<Vec<NetworkDevice>, String> {
         let _ = discovery.shutdown();
 
         Ok(devices)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+// ============================================
+// 扫码配对连接
+// ============================================
+
+/// 生成随机字符串
+fn random_string(len: usize) -> String {
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let mut rng = rand::thread_rng();
+    (0..len)
+        .map(|_| {
+            let idx = rng.gen_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
+}
+
+/// 生成配对二维码
+#[tauri::command]
+pub async fn generate_pairing_qr() -> Result<QrPairingInfo, String> {
+    tokio::task::spawn_blocking(|| {
+        let service_name = format!("adbui-{}", random_string(10));
+        let password = random_string(10);
+        let qr_data = format!("WIFI:T:ADB;S:{};P:{};;", service_name, password);
+
+        // 生成二维码 SVG
+        let code = QrCode::new(qr_data.as_bytes())
+            .map_err(|e| format!("Failed to generate QR code: {}", e))?;
+
+        let svg_image = code
+            .render::<svg::Color>()
+            .min_dimensions(256, 256)
+            .dark_color(svg::Color("#000000"))
+            .light_color(svg::Color("#ffffff"))
+            .build();
+
+        // SVG 转 base64
+        let qr_image_base64 = BASE64.encode(svg_image.as_bytes());
+
+        Ok(QrPairingInfo {
+            qr_data,
+            qr_image_base64,
+            service_name,
+            password,
+        })
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+/// 等待手机扫码并完成配对和连接
+#[tauri::command]
+pub async fn wait_and_pair_device(
+    service_name: String,
+    password: String,
+    timeout_secs: Option<u64>,
+) -> Result<String, String> {
+    let timeout = Duration::from_secs(timeout_secs.unwrap_or(120));
+
+    tokio::task::spawn_blocking(move || {
+        // 第一步：监听 _adb-tls-pairing._tcp.local. 等待手机扫码
+        let daemon = ServiceDaemon::new()
+            .map_err(|e| format!("Failed to create mDNS daemon: {}", e))?;
+
+        let receiver = daemon
+            .browse(ADB_PAIRING_SERVICE)
+            .map_err(|e| format!("Failed to browse mDNS pairing service: {}", e))?;
+
+        let start = std::time::Instant::now();
+        let mut pairing_addr: Option<SocketAddrV4> = None;
+
+        // 等待手机扫码广播配对服务
+        while start.elapsed() < timeout {
+            match receiver.recv_timeout(Duration::from_millis(500)) {
+                Ok(ServiceEvent::ServiceResolved(info)) => {
+                    // 检查是否是我们等待的服务名
+                    if info.get_fullname().contains(&service_name) {
+                        for addr in info.get_addresses() {
+                            if let std::net::IpAddr::V4(ipv4) = addr.to_ip_addr() {
+                                pairing_addr = Some(SocketAddrV4::new(ipv4, info.get_port()));
+                                break;
+                            }
+                        }
+                        if pairing_addr.is_some() {
+                            break;
+                        }
+                    }
+                }
+                Ok(_) => {
+                    // 其他事件，继续等待
+                    continue;
+                }
+                Err(_) => {
+                    // 超时或断开，继续等待
+                    continue;
+                }
+            }
+        }
+
+        let _ = daemon.shutdown();
+
+        let pairing_addr = pairing_addr
+            .ok_or_else(|| "Timeout waiting for device pairing. Please ensure the phone scanned the QR code.".to_string())?;
+
+        // 第二步：执行配对
+        let mut server = ADBServer::default();
+        server
+            .pair(pairing_addr, password)
+            .map_err(|e| format!("Failed to pair with {}: {}", pairing_addr, e))?;
+
+        // 第三步：监听 _adb-tls-connect._tcp.local. 获取连接端口
+        let daemon2 = ServiceDaemon::new()
+            .map_err(|e| format!("Failed to create mDNS daemon: {}", e))?;
+
+        let receiver2 = daemon2
+            .browse(ADB_CONNECT_SERVICE)
+            .map_err(|e| format!("Failed to browse mDNS connect service: {}", e))?;
+
+        let connect_timeout = Duration::from_secs(30);
+        let connect_start = std::time::Instant::now();
+        let mut connect_addr: Option<SocketAddrV4> = None;
+        let pairing_ip = pairing_addr.ip();
+
+        while connect_start.elapsed() < connect_timeout {
+            match receiver2.recv_timeout(Duration::from_millis(500)) {
+                Ok(ServiceEvent::ServiceResolved(info)) => {
+                    // 查找同一 IP 的连接服务
+                    for addr in info.get_addresses() {
+                        if let std::net::IpAddr::V4(ipv4) = addr.to_ip_addr() {
+                            if ipv4 == *pairing_ip {
+                                connect_addr = Some(SocketAddrV4::new(ipv4, info.get_port()));
+                                break;
+                            }
+                        }
+                    }
+                    if connect_addr.is_some() {
+                        break;
+                    }
+                }
+                Ok(_) => {
+                    continue;
+                }
+                Err(_) => {
+                    continue;
+                }
+            }
+        }
+
+        let _ = daemon2.shutdown();
+
+        // 第四步：自动连接
+        let connect_addr = connect_addr
+            .ok_or_else(|| "Could not discover connection port. Please connect manually.".to_string())?;
+
+        server
+            .connect_device(connect_addr)
+            .map_err(|e| format!("Failed to connect to {}: {}", connect_addr, e))?;
+
+        Ok(connect_addr.to_string())
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?

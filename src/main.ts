@@ -22,6 +22,11 @@ import Slider from 'primevue/slider';
 import Dropdown from 'primevue/dropdown';
 import Drawer from 'primevue/drawer';
 import VirtualScroller from 'primevue/virtualscroller';
+import Tabs from 'primevue/tabs';
+import TabList from 'primevue/tablist';
+import Tab from 'primevue/tab';
+import TabPanels from 'primevue/tabpanels';
+import TabPanel from 'primevue/tabpanel';
 
 // PrimeVue Styles
 import 'primeicons/primeicons.css';
@@ -58,6 +63,11 @@ app.component('Slider', Slider);
 app.component('Dropdown', Dropdown);
 app.component('Drawer', Drawer);
 app.component('VirtualScroller', VirtualScroller);
+app.component('Tabs', Tabs);
+app.component('TabList', TabList);
+app.component('Tab', Tab);
+app.component('TabPanels', TabPanels);
+app.component('TabPanel', TabPanel);
 
 // Register directives
 app.directive('tooltip', Tooltip);

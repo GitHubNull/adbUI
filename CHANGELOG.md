@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.10.0] - 2026-08-22
+
+### Added
+
+- 无线连接对话框新增扫码配对（QR Pairing）连接方式：生成 `WIFI:T:ADB` 配对二维码，手机扫码后自动完成 mDNS 配对与连接
+- 后端新增 `generate_pairing_qr` 命令：生成随机服务名与 10 位配对码，渲染二维码为 SVG 并转 base64 PNG 返回
+- 后端新增 `wait_and_pair_device` 命令：三步流程（监听 `_adb-tls-pairing` 等待扫码 → ADB pair → 监听 `_adb-tls-connect` 发现连接端口并自动 connect），支持超时取消
+- 无线连接对话框重构为三页签（扫码连接 / 手动输入 / 扫描连接），配对流程含完整状态机（等待/配对/连接/成功/失败）与中断取消
+- 新增依赖：`qrcode` 0.14、`rand` 0.8、`mdns-sd` 0.19；新增 `QrPairingInfo` 数据模型
+- 前端注册 PrimeVue Tabs 组件族（Tabs / TabList / Tab / TabPanels / TabPanel）
+
 ## [0.9.0-preview.2] - 2026-08-22
 
 ### Added

@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import type { DeviceInfo, DeviceDetail, AdbResult, NetworkDevice } from '../types/device';
+import type { DeviceInfo, DeviceDetail, AdbResult, NetworkDevice, QrPairingInfo } from '../types/device';
 
 const POLLING_INTERVAL = 5000; // 5 seconds
 
@@ -41,6 +41,8 @@ export function useDevices() {
   const detailLoading = ref(false);
   const isConnecting = ref(false);
   const isScanning = ref(false);
+  const isPairing = ref(false);
+  const pairingQrInfo = ref<QrPairingInfo | null>(null);
 
   let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -182,6 +184,48 @@ export function useDevices() {
     }
   }
 
+  // ============================================
+  // 扫码配对连接
+  // ============================================
+
+  async function generatePairingQr(): Promise<QrPairingInfo> {
+    if (isTauri()) {
+      const info = await invoke<QrPairingInfo>('generate_pairing_qr');
+      pairingQrInfo.value = info;
+      return info;
+    } else {
+      // Browser mock mode
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const mockInfo: QrPairingInfo = {
+        qr_data: 'WIFI:T:ADB;S:adbui-mock1234;P:mockpass12;;',
+        qr_image_base64: 'PHN2ZyB2aWV3Qm94PSIwIDAgMjU2IDI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgZmlsbD0iI2ZmZmZmZiIvPjwvc3ZnPg==',
+        service_name: 'adbui-mock1234',
+        password: 'mockpass12',
+      };
+      pairingQrInfo.value = mockInfo;
+      return mockInfo;
+    }
+  }
+
+  async function waitAndPairDevice(serviceName: string, password: string, timeoutSecs?: number): Promise<string> {
+    isPairing.value = true;
+    try {
+      if (isTauri()) {
+        return await invoke<string>('wait_and_pair_device', {
+          serviceName,
+          password,
+          timeoutSecs: timeoutSecs || 120,
+        });
+      } else {
+        // Browser mock mode
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        return '192.168.1.100:5555';
+      }
+    } finally {
+      isPairing.value = false;
+    }
+  }
+
   onMounted(() => {
     startPolling();
   });
@@ -199,6 +243,8 @@ export function useDevices() {
     detailLoading,
     isConnecting,
     isScanning,
+    isPairing,
+    pairingQrInfo,
     fetchDevices,
     startPolling,
     stopPolling,
@@ -208,5 +254,7 @@ export function useDevices() {
     connectDevice,
     disconnectDevice,
     scanNetworkDevices,
+    generatePairingQr,
+    waitAndPairDevice,
   };
 }

@@ -236,3 +236,19 @@ export interface NetworkDevice {
   port: number;
   fullname: string;
 }
+
+// ============================================
+// 扫码配对连接
+// ============================================
+
+/** 二维码配对信息 */
+export interface QrPairingInfo {
+  /** 二维码内容（WIFI:T:ADB;S:xxx;P:xxx;;） */
+  qr_data: string;
+  /** PNG 图片的 base64 编码 */
+  qr_image_base64: string;
+  /** mDNS 服务名 */
+  service_name: string;
+  /** 配对码 */
+  password: string;
+}

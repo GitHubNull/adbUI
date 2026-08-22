@@ -46,3 +46,16 @@ pub struct NetworkDevice {
     pub port: u16,
     pub fullname: String,
 }
+
+/// 二维码配对信息
+#[derive(Serialize, Clone, Debug)]
+pub struct QrPairingInfo {
+    /// 二维码内容（WIFI:T:ADB;S:xxx;P:xxx;;）
+    pub qr_data: String,
+    /// PNG 图片的 base64 编码
+    pub qr_image_base64: String,
+    /// mDNS 服务名
+    pub service_name: String,
+    /// 配对码
+    pub password: String,
+}

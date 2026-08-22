@@ -4,12 +4,12 @@ pub mod task;
 use adb::{
     batch_install, batch_uninstall, battery_reset, battery_simulate, check_screen_record_support,
     clear_app_data, clear_command_history, connect_device, disconnect_device, execute_adb,
-    execute_script, extract_apk, force_stop_app, freeze_app, get_battery_state,
+    execute_script, extract_apk, force_stop_app, freeze_app, generate_pairing_qr, get_battery_state,
     get_command_history, get_device_detail, get_device_logs, get_device_report, get_display_state,
     get_performance_data, install_apk, list_apps, list_devices, list_files, pull_file, push_file,
     read_file_base64, reboot_device, reset_display, save_screenshot, scan_network_devices,
     send_input, set_display, set_system_param, start_screen_record, stop_screen_record,
-    take_screenshot, unfreeze_app, uninstall_app,
+    take_screenshot, unfreeze_app, uninstall_app, wait_and_pair_device,
 };
 use task::{cancel_task, clear_completed_tasks, get_tasks};
 
@@ -27,6 +27,8 @@ pub fn run() {
             connect_device,
             disconnect_device,
             scan_network_devices,
+            generate_pairing_qr,
+            wait_and_pair_device,
             // 应用管理
             list_apps,
             uninstall_app,

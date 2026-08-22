@@ -30,11 +30,14 @@ dependencies = [
 
 [[package]]
 name = "adbui"
-version = "0.9.0-preview.2"
+version = "0.10.0"
 dependencies = [
  "adb_client",
  "base64 0.22.1",
  "image",
+ "mdns-sd",
+ "qrcode",
+ "rand 0.8.7",
  "serde",
  "serde_json",
  "tauri",
@@ -1362,6 +1365,8 @@ version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da0e4dd2a88388a1f4ccc7c9ce104604dab68d9f408dc34cd45823d5a9069095"
 dependencies = [
+ "futures-core",
+ "futures-sink",
  "spin",
 ]
 
@@ -3451,6 +3456,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f6d64c71eb498fe9eae14ce4ec935c555749aef511cca85b5568910d6e48001"
 dependencies = [
  "bytemuck",
+]
+
+[[package]]
+name = "qrcode"
+version = "0.14.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68782463e408eb1e668cf6152704bd856c78c5b6417adaee3203d8f4c1fc9ec"
+dependencies = [
+ "image",
 ]
 
 [[package]]
