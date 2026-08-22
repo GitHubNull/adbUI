@@ -106,10 +106,13 @@ jobs:
         include:
           - platform: linux
             os: ubuntu-22.04
+            bundles: deb,appimage
           - platform: macos
             os: macos-latest
+            bundles: dmg,app
           - platform: windows
             os: windows-latest
+            bundles: msi,nsis
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -149,8 +152,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # 不传 releaseId / tagName → 仅构建不上传 Release
+          # 按平台显式指定打包目标（tauri.conf.json 不再写死 targets，避免 macOS/Windows 产物为空）
           projectPath: .
-          args: --verbose
+          args: --verbose --bundles ${{ matrix.bundles }}
 
       - name: Collect bundles (Linux)
         if: matrix.platform == 'linux'
