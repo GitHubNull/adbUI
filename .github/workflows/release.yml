@@ -176,17 +176,19 @@ jobs:
 
       - name: Collect bundles (Windows)
         if: matrix.platform == 'windows'
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p dist-bundle
-          echo "=== Current directory ==="
-          pwd
-          echo "=== Listing src-tauri/target/release/bundle ==="
-          ls -la src-tauri/target/release/bundle 2>/dev/null || echo "bundle dir not found"
-          echo "=== Searching for exe/msi ==="
-          find src-tauri/target/release/bundle -type f \( -name '*.exe' -o -name '*.msi' \) 2>&1
-          find src-tauri/target/release/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
-          ls -lh dist-bundle/
+          New-Item -ItemType Directory -Force -Path dist-bundle
+          $bundleDir = "src-tauri/target/release/bundle"
+          Write-Host "=== Bundle directory check ==="
+          if (Test-Path $bundleDir) {
+            Get-ChildItem -Path $bundleDir -Recurse | Select-Object -ExpandProperty FullName
+            Get-ChildItem -Path $bundleDir -Recurse -Include "*.exe","*.msi" | ForEach-Object { Copy-Item $_.FullName -Destination dist-bundle/ }
+          } else {
+            Write-Host "Bundle dir not found at $bundleDir, searching..."
+            Get-ChildItem -Path . -Recurse -Include "*.exe","*.msi" | Where-Object { $_.FullName -like "*bundle*" } | ForEach-Object { Copy-Item $_.FullName -Destination dist-bundle/ }
+          }
+          Get-ChildItem -Path dist-bundle
 
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
