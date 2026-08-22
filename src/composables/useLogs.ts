@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type { LogEntry, LogLevel } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -70,10 +71,13 @@ export function useLogs() {
   // 获取日志
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchLogs(deviceId: string) {
     if (paused.value) return;
 
     loading.value = true;
+    beginRefresh();
     try {
       let rawText: string;
       if (isTauri()) {
@@ -96,6 +100,7 @@ export function useLogs() {
       console.error('Failed to fetch logs:', err);
     } finally {
       loading.value = false;
+      endRefresh();
     }
   }
 

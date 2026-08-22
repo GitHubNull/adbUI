@@ -2,6 +2,7 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { TaskInfo } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -43,8 +44,11 @@ export function useTasks() {
   // 获取任务列表
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchTasks() {
     loading.value = true;
+    beginRefresh();
     try {
       if (isTauri()) {
         tasks.value = await invoke<TaskInfo[]>('get_tasks');
@@ -56,6 +60,7 @@ export function useTasks() {
       console.error('Failed to fetch tasks:', err);
     } finally {
       loading.value = false;
+      endRefresh();
     }
   }
 

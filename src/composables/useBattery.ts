@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type { BatteryState, AdbResult } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -32,9 +33,12 @@ export function useBattery() {
   // 读取电池状态
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchBatteryState(deviceId: string): Promise<BatteryState | null> {
     loading.value = true;
     error.value = null;
+    beginRefresh();
     try {
       if (isTauri()) {
         battery.value = await invoke<BatteryState>('get_battery_state', { deviceId });
@@ -49,6 +53,7 @@ export function useBattery() {
       return null;
     } finally {
       loading.value = false;
+      endRefresh();
     }
   }
 

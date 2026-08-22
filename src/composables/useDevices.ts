@@ -1,8 +1,17 @@
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import type { DeviceInfo, DeviceDetail, AdbResult, NetworkDevice, QrPairingInfo } from '../types/device';
+import type {
+  DeviceInfo,
+  DeviceDetail,
+  AdbResult,
+  NetworkDevice,
+  QrPairingInfo,
+  DeviceChangedPayload,
+} from '../types/device';
+import { useWebSocket } from './useWebSocket';
+import { useAppStatus } from './useAppStatus';
 
-const POLLING_INTERVAL = 5000; // 5 seconds
+const FALLBACK_POLLING_INTERVAL = 5000; // 降级轮询间隔（WebSocket 不可用时）
 
 // Detect if running inside Tauri
 function isTauri(): boolean {
@@ -44,11 +53,22 @@ export function useDevices() {
   const isPairing = ref(false);
   const pairingQrInfo = ref<QrPairingInfo | null>(null);
 
-  let pollingTimer: ReturnType<typeof setInterval> | null = null;
+  let fallbackTimer: ReturnType<typeof setInterval> | null = null;
+  let unsubDeviceChanged: (() => void) | null = null;
 
-  async function fetchDevices() {
-    loading.value = true;
+  const { connect, on, connected: wsConnected } = useWebSocket();
+  const { beginRefresh, endRefresh, setWsStatus } = useAppStatus();
+
+  /**
+   * 获取设备列表。
+   * @param silent 静默刷新：不置 loading、不触发全屏遮罩（自动刷新场景使用）
+   */
+  async function fetchDevices(silent = false) {
+    if (!silent) {
+      loading.value = true;
+    }
     error.value = null;
+    beginRefresh();
     try {
       let result: DeviceInfo[];
       if (isTauri()) {
@@ -58,40 +78,85 @@ export function useDevices() {
         await new Promise((resolve) => setTimeout(resolve, 500));
         result = MOCK_DEVICES;
       }
-      devices.value = result;
 
-      // If selected device is no longer in list, clear selection
-      if (selectedDevice.value) {
-        const stillExists = result.find((d) => d.id === selectedDevice.value!.id);
-        if (!stillExists) {
-          selectedDevice.value = null;
-          deviceDetail.value = null;
+      // 仅在列表实际变化时更新，避免无谓的视图重绘
+      if (JSON.stringify(result) !== JSON.stringify(devices.value)) {
+        devices.value = result;
+
+        // If selected device is no longer in list, clear selection
+        if (selectedDevice.value) {
+          const stillExists = result.find((d) => d.id === selectedDevice.value!.id);
+          if (!stillExists) {
+            selectedDevice.value = null;
+            deviceDetail.value = null;
+          }
         }
       }
     } catch (err) {
       error.value = String(err);
       console.error('Failed to fetch devices:', err);
     } finally {
-      loading.value = false;
+      if (!silent) {
+        loading.value = false;
+      }
+      endRefresh();
     }
   }
 
-  function startPolling() {
-    if (pollingTimer) return;
-    fetchDevices(); // Immediate first fetch
-    pollingTimer = setInterval(() => {
+  // ============================================
+  // 降级轮询（WebSocket 不可用时启动）
+  // ============================================
+
+  function startFallbackPolling() {
+    if (fallbackTimer) return;
+    fetchDevices(true); // 立即静默刷新一次
+    fallbackTimer = setInterval(() => {
       // 页面隐藏时暂停轮询
       if (document.visibilityState === 'visible') {
-        fetchDevices();
+        fetchDevices(true);
       }
-    }, POLLING_INTERVAL);
+    }, FALLBACK_POLLING_INTERVAL);
   }
 
-  function stopPolling() {
-    if (pollingTimer) {
-      clearInterval(pollingTimer);
-      pollingTimer = null;
+  function stopFallbackPolling() {
+    if (fallbackTimer) {
+      clearInterval(fallbackTimer);
+      fallbackTimer = null;
     }
+  }
+
+  // ============================================
+  // WebSocket 实时通知
+  // ============================================
+
+  /** 根据 WebSocket 连接状态切换实时 / 轮询模式 */
+  function syncDataMode() {
+    if (wsConnected.value) {
+      stopFallbackPolling();
+      setWsStatus(true);
+    } else {
+      startFallbackPolling();
+      setWsStatus(false);
+    }
+  }
+
+  function initRealtime() {
+    // 订阅设备状态变更事件，收到后静默刷新列表
+    unsubDeviceChanged = on('device_changed', (payload) => {
+      const change = payload as DeviceChangedPayload;
+      if (!change || !change.device_id) return;
+      if (document.visibilityState === 'visible') {
+        fetchDevices(true);
+      }
+    });
+
+    // 连接状态变化时自动切换数据获取模式
+    watch(wsConnected, () => {
+      syncDataMode();
+    });
+
+    connect();
+    syncDataMode();
   }
 
   async function refreshDevices() {
@@ -166,6 +231,18 @@ export function useDevices() {
     }
   }
 
+  /** 主动断开指定设备（按设备 ID，支持 WiFi 设备） */
+  async function disconnectDeviceById(deviceId: string): Promise<void> {
+    if (isTauri()) {
+      await invoke('disconnect_device_by_id', { deviceId });
+    } else {
+      // Browser mock mode
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      console.log(`(Mock) Disconnected device: ${deviceId}`);
+    }
+    await fetchDevices(true);
+  }
+
   async function scanNetworkDevices(): Promise<NetworkDevice[]> {
     isScanning.value = true;
     try {
@@ -227,11 +304,21 @@ export function useDevices() {
   }
 
   onMounted(() => {
-    startPolling();
+    fetchDevices(); // 首次加载（显示 loading）
+    if (isTauri()) {
+      initRealtime();
+    } else {
+      // 浏览器开发模式：直接使用降级轮询
+      startFallbackPolling();
+    }
   });
 
   onUnmounted(() => {
-    stopPolling();
+    stopFallbackPolling();
+    if (unsubDeviceChanged) {
+      unsubDeviceChanged();
+      unsubDeviceChanged = null;
+    }
   });
 
   return {
@@ -246,13 +333,12 @@ export function useDevices() {
     isPairing,
     pairingQrInfo,
     fetchDevices,
-    startPolling,
-    stopPolling,
     refreshDevices,
     selectDevice,
     executeAdbCommand,
     connectDevice,
     disconnectDevice,
+    disconnectDeviceById,
     scanNetworkDevices,
     generatePairingQr,
     waitAndPairDevice,

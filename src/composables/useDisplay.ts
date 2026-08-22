@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type { DisplayState, AdbResult } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -32,9 +33,12 @@ export function useDisplay() {
   // 读取显示状态
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchDisplayState(deviceId: string): Promise<DisplayState | null> {
     loading.value = true;
     error.value = null;
+    beginRefresh();
     try {
       if (isTauri()) {
         display.value = await invoke<DisplayState>('get_display_state', { deviceId });
@@ -49,6 +53,7 @@ export function useDisplay() {
       return null;
     } finally {
       loading.value = false;
+      endRefresh();
     }
   }
 

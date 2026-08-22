@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type { FileItem, AdbResult } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -58,6 +59,7 @@ export function useFiles() {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const currentPath = ref(DEFAULT_PATH);
+  const { beginRefresh, endRefresh } = useAppStatus();
 
   // 面包屑路径段
   const pathSegments = computed(() => {
@@ -88,6 +90,7 @@ export function useFiles() {
     const seq = ++fetchSeq;
     loading.value = true;
     error.value = null;
+    beginRefresh();
 
     try {
       if (isTauri()) {
@@ -116,6 +119,7 @@ export function useFiles() {
       if (seq === fetchSeq) {
         loading.value = false;
       }
+      endRefresh();
     }
   }
 

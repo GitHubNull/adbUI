@@ -1,16 +1,19 @@
 use adb_client::server::ADBServer;
 use adb_client::server_device::ADBServerDevice;
 use adb_client::mdns::MDNSDiscoveryService;
+use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::time::Duration;
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 use qrcode::QrCode;
 use qrcode::render::svg;
 use rand::Rng;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use mdns_sd::{ServiceDaemon, ServiceEvent};
+
+use crate::websocket::{broadcast_device_changed, WsState};
 
 const ADB_PAIRING_SERVICE: &str = "_adb-tls-pairing._tcp.local.";
 const ADB_CONNECT_SERVICE: &str = "_adb-tls-connect._tcp.local.";
@@ -159,8 +162,13 @@ pub async fn execute_adb(
 }
 
 #[tauri::command]
-pub async fn connect_device(ip: String, port: u16) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
+pub async fn connect_device(
+    ip: String,
+    port: u16,
+    ws_state: State<'_, WsState>,
+) -> Result<(), String> {
+    let device_id = format!("{}:{}", ip, port);
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
         let ip_addr: Ipv4Addr = ip
             .parse()
             .map_err(|e| format!("Invalid IP address '{}': {}", ip, e))?;
@@ -174,12 +182,21 @@ pub async fn connect_device(ip: String, port: u16) -> Result<(), String> {
         Ok(())
     })
     .await
-    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // 广播设备连接事件
+    broadcast_device_changed(&ws_state, "connected", &device_id);
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn disconnect_device(ip: String, port: u16) -> Result<(), String> {
-    tokio::task::spawn_blocking(move || {
+pub async fn disconnect_device(
+    ip: String,
+    port: u16,
+    ws_state: State<'_, WsState>,
+) -> Result<(), String> {
+    let device_id = format!("{}:{}", ip, port);
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
         let ip_addr: Ipv4Addr = ip
             .parse()
             .map_err(|e| format!("Invalid IP address '{}': {}", ip, e))?;
@@ -193,7 +210,45 @@ pub async fn disconnect_device(ip: String, port: u16) -> Result<(), String> {
         Ok(())
     })
     .await
-    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // 广播设备断开事件
+    broadcast_device_changed(&ws_state, "disconnected", &device_id);
+    Ok(())
+}
+
+/// 根据设备 ID（ip:port 或序列号）断开连接。
+/// 仅支持 WiFi 设备（id 含 ip:port）；USB 设备提示直接拔除。
+#[tauri::command]
+pub async fn disconnect_device_by_id(
+    device_id: String,
+    ws_state: State<'_, WsState>,
+) -> Result<(), String> {
+    let (ip, port) = device_id
+        .rsplit_once(':')
+        .ok_or_else(|| "该设备为 USB 连接，请直接拔除数据线".to_string())?;
+
+    let ip_str = ip.to_string();
+    let ip_addr: Ipv4Addr = ip_str
+        .parse()
+        .map_err(|e| format!("Invalid IP address '{}': {}", ip, e))?;
+    let port: u16 = port
+        .parse()
+        .map_err(|e| format!("Invalid port '{}': {}", port, e))?;
+    let addr = SocketAddrV4::new(ip_addr, port);
+
+    tokio::task::spawn_blocking(move || {
+        let mut server = ADBServer::default();
+        server
+            .disconnect_device(addr)
+            .map_err(|e| format!("Failed to disconnect from {}:{}: {}", ip_str, port, e))
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // 广播设备断开事件
+    broadcast_device_changed(&ws_state, "disconnected", &device_id);
+    Ok(())
 }
 
 #[tauri::command]
@@ -302,10 +357,11 @@ pub async fn wait_and_pair_device(
     service_name: String,
     password: String,
     timeout_secs: Option<u64>,
+    ws_state: State<'_, WsState>,
 ) -> Result<String, String> {
     let timeout = Duration::from_secs(timeout_secs.unwrap_or(120));
 
-    tokio::task::spawn_blocking(move || {
+    let addr_str = tokio::task::spawn_blocking(move || -> Result<String, String> {
         // 第一步：监听 _adb-tls-pairing._tcp.local. 等待手机扫码
         let daemon = ServiceDaemon::new()
             .map_err(|e| format!("Failed to create mDNS daemon: {}", e))?;
@@ -407,5 +463,72 @@ pub async fn wait_and_pair_device(
         Ok(connect_addr.to_string())
     })
     .await
-    .map_err(|e| format!("Task join error: {}", e))?
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // 广播设备连接事件
+    broadcast_device_changed(&ws_state, "connected", &addr_str);
+    Ok(addr_str)
+}
+
+// ============================================
+// 设备状态监控（后端定时巡检 + WebSocket 推送）
+// ============================================
+
+/// 启动设备状态监控：每 2 秒对比设备列表，
+/// 检测到新增 / 移除 / 状态变化时通过 WebSocket 广播事件。
+pub fn spawn_device_monitor(app: AppHandle) {
+    let ws_state = app.state::<WsState>().inner().clone();
+
+    tauri::async_runtime::spawn(async move {
+        let mut last_devices: HashMap<String, DeviceStatus> = HashMap::new();
+
+        loop {
+            tokio::time::sleep(Duration::from_secs(2)).await;
+
+            let result = tokio::task::spawn_blocking(|| {
+                let mut server = ADBServer::default();
+                server.devices_long().map(|devices| {
+                    devices
+                        .into_iter()
+                        .map(|dev| (dev.identifier.clone(), map_device_state(&dev.state)))
+                        .collect::<Vec<(String, DeviceStatus)>>()
+                })
+            })
+            .await;
+
+            let devices = match result {
+                Ok(Ok(devices)) => devices,
+                Ok(Err(e)) => {
+                    eprintln!("Device monitor: failed to list devices: {}", e);
+                    continue;
+                }
+                Err(e) => {
+                    eprintln!("Device monitor: task join error: {}", e);
+                    continue;
+                }
+            };
+
+            let current: HashMap<String, DeviceStatus> = devices.into_iter().collect();
+
+            // 新增或状态变化
+            for (id, status) in &current {
+                match last_devices.get(id) {
+                    None => broadcast_device_changed(&ws_state, "connected", id),
+                    Some(prev) if prev != status => {
+                        broadcast_device_changed(&ws_state, "updated", id)
+                    }
+                    _ => {}
+                }
+            }
+
+            // 移除
+            for id in last_devices.keys() {
+                if !current.contains_key(id) {
+                    broadcast_device_changed(&ws_state, "disconnected", id);
+                }
+            }
+
+            last_devices = current;
+        }
+    });
 }

@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type { PerformanceData } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -44,8 +45,11 @@ export function usePerformance() {
   // 获取性能数据
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchPerformance(deviceId: string) {
     loading.value = true;
+    beginRefresh();
     try {
       let result: PerformanceData;
       if (isTauri()) {
@@ -71,6 +75,7 @@ export function usePerformance() {
       console.error('Failed to fetch performance data:', err);
     } finally {
       loading.value = false;
+      endRefresh();
     }
   }
 
@@ -82,7 +87,12 @@ export function usePerformance() {
     if (pollingTimer) return;
     monitoring.value = true;
     fetchPerformance(deviceId);
-    pollingTimer = setInterval(() => fetchPerformance(deviceId), POLLING_INTERVAL);
+    pollingTimer = setInterval(() => {
+      // 页面隐藏时暂停轮询
+      if (document.visibilityState === 'visible') {
+        fetchPerformance(deviceId);
+      }
+    }, POLLING_INTERVAL);
   }
 
   function stopMonitoring() {

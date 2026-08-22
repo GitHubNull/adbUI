@@ -2,6 +2,7 @@ import { ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type { AppInfo, AppFilter, AdbResult } from '../types/device';
+import { useAppStatus } from './useAppStatus';
 
 // ============================================
 // 环境检测
@@ -86,12 +87,15 @@ export function useApps() {
   // 获取应用列表（后端统一返回全量，类型过滤由前端本地完成）
   // ============================================
 
+  const { beginRefresh, endRefresh } = useAppStatus();
+
   async function fetchApps(deviceId: string, filter?: AppFilter) {
     const seq = ++fetchSeq;
     loading.value = true;
     error.value = null;
     const f = filter || currentFilter.value;
     currentFilter.value = f;
+    beginRefresh();
 
     try {
       if (isTauri()) {
@@ -118,6 +122,7 @@ export function useApps() {
       if (seq === fetchSeq) {
         loading.value = false;
       }
+      endRefresh();
     }
   }
 

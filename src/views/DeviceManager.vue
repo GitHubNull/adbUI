@@ -14,8 +14,21 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'select', device: DeviceInfo): void;
   (e: 'refresh'): void;
+  (e: 'disconnect', device: DeviceInfo): void;
   (e: 'toast', message: string, severity: string): void;
 }>();
+
+// 正在断开的设备 ID（防止重复点击）
+const disconnectingId = ref<string | null>(null);
+
+function onDisconnect(device: DeviceInfo) {
+  if (disconnectingId.value) return;
+  disconnectingId.value = device.id;
+  emit('disconnect', device);
+  setTimeout(() => {
+    disconnectingId.value = null;
+  }, 2000);
+}
 
 // 无线连接对话框
 const showWirelessDialog = ref(false);
@@ -161,6 +174,21 @@ function getConnectionIcon(connection: string): string {
           <Column field="connection" header="连接方式" style="width: 100px">
             <template #body="{ data }">
               <span class="text-secondary">{{ data.connection }}</span>
+            </template>
+          </Column>
+
+          <Column header="操作" style="width: 90px">
+            <template #body="{ data }">
+              <Button
+                v-if="data.status === 'Online' && data.connection === 'WiFi'"
+                icon="pi pi-power-off"
+                label="断开"
+                size="small"
+                severity="danger"
+                text
+                :loading="disconnectingId === data.id"
+                @click="onDisconnect(data)"
+              />
             </template>
           </Column>
         </DataTable>

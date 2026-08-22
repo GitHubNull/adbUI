@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.11.0] - 2026-08-23
+
+### Added
+
+- 新增 WebSocket 实时通知服务（`websocket.rs`）：后端在 `127.0.0.1` 启动本地 WebSocket 服务器，设备状态变化（连接/断开/电量等）时主动推送 `{ type, payload }` 事件
+- 新增 `spawn_device_monitor` 设备状态监控：检测到设备变化时通过 WebSocket 广播 `device_changed` 事件
+- 新增 `get_websocket_port` 命令（前端获取端口后连接）与 `disconnect_device_by_id` 命令（按设备 ID 断开）
+- 前端新增 `useWebSocket.ts` 单例客户端：指数退避重连（最多 5 次）、30s 心跳、按事件类型分发监听器
+- 新增 `useAppStatus.ts` 全局状态与 `AppStatusBar.vue` 底部状态栏：展示刷新计数与连接模式（WebSocket / 轮询降级）
+- 设备管理、应用管理、电量、显示、文件、日志、性能、任务等 composables 接入实时推送，WebSocket 不可用时自动降级为轮询
+- 新增依赖：`tokio-tungstenite` 0.24、`futures-util` 0.3；新增 `WsEvent` 类型定义
+
 ## [0.10.0] - 2026-08-22
 
 ### Added

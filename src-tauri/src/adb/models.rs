@@ -12,7 +12,7 @@ pub struct DeviceInfo {
     pub connection: String,
 }
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Clone, Debug, PartialEq)]
 pub enum DeviceStatus {
     Online,
     Offline,

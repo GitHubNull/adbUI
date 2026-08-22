@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import AppSidebar from './components/AppSidebar.vue';
+import AppStatusBar from './components/AppStatusBar.vue';
 import DeviceManager from './views/DeviceManager.vue';
 import AppManager from './views/AppManager.vue';
 import FileManager from './views/FileManager.vue';
@@ -13,7 +14,9 @@ import LogViewer from './views/LogViewer.vue';
 import ShellTerminal from './views/ShellTerminal.vue';
 import ScreenshotRecorder from './views/ScreenshotRecorder.vue';
 import PerformanceMonitor from './views/PerformanceMonitor.vue';
+import type { DeviceInfo } from './types/device';
 import { useDevices } from './composables/useDevices';
+import { useTasks } from './composables/useTasks';
 import { useToast } from 'primevue/usetoast';
 
 const currentView = ref('devices');
@@ -21,13 +24,19 @@ const toast = useToast();
 
 const {
   devices,
-  loading,
   selectedDevice,
   deviceDetail,
   detailLoading,
   refreshDevices,
   selectDevice,
+  disconnectDeviceById,
 } = useDevices();
+
+// 根级任务状态：供底部状态栏显示后台运行中任务数
+const { tasks } = useTasks();
+
+const onlineCount = computed(() => devices.value.filter((d) => d.status === 'Online').length);
+const totalCount = computed(() => devices.value.length);
 
 function onNavigate(view: string) {
   currentView.value = view;
@@ -40,6 +49,15 @@ function showToast(message: string, severity: string) {
     life: 3000,
   });
 }
+
+async function onDisconnectDevice(device: DeviceInfo) {
+  try {
+    await disconnectDeviceById(device.id);
+    showToast(`已断开设备 ${device.id}`, 'success');
+  } catch (err) {
+    showToast(String(err), 'error');
+  }
+}
 </script>
 
 <template>
@@ -47,6 +65,7 @@ function showToast(message: string, severity: string) {
     <AppSidebar @navigate="onNavigate" />
 
     <main class="main-content">
+      <div class="view-container">
       <DeviceManager
         v-if="currentView === 'devices'"
         :devices="devices"
@@ -55,6 +74,7 @@ function showToast(message: string, severity: string) {
         :detail-loading="detailLoading"
         @select="selectDevice"
         @refresh="refreshDevices"
+        @disconnect="onDisconnectDevice"
         @toast="showToast"
       />
 
@@ -126,13 +146,16 @@ function showToast(message: string, severity: string) {
         <h2>{{ currentView }}</h2>
         <p>功能开发中，敬请期待...</p>
       </div>
-    </main>
-
-    <!-- Global Loading Overlay -->
-    <div v-if="loading" class="loading-overlay">
-      <ProgressSpinner />
-      <span>正在刷新设备列表...</span>
     </div>
+
+    <!-- 底部状态栏：刷新动画 + 功能特性状态 -->
+    <AppStatusBar
+      :current-view="currentView"
+      :online-count="onlineCount"
+      :total-count="totalCount"
+      :tasks="tasks"
+    />
+  </main>
 
     <!-- Toast -->
     <Toast />
@@ -160,8 +183,17 @@ function showToast(message: string, severity: string) {
 
 .main-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  background: var(--surface-ground);
+  /* PrimeVue 4 主题变量：随明暗模式切换的内容区背景，与深色状态栏形成对比 */
+  background: var(--p-content-background);
+}
+
+.view-container {
+  flex: 1;
+  overflow: hidden;
+  background: var(--p-content-background);
 }
 
 .placeholder-view {
@@ -170,34 +202,18 @@ function showToast(message: string, severity: string) {
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--text-color-secondary);
+  color: var(--p-text-muted-color);
   gap: 1rem;
 }
 
 .placeholder-icon {
   font-size: 4rem;
-  color: var(--surface-400);
+  color: var(--p-surface-400);
 }
 
 .placeholder-view h2 {
-  color: var(--text-color);
+  color: var(--p-text-color);
   font-size: 1.5rem;
   text-transform: capitalize;
-}
-
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  color: white;
-  z-index: 9999;
 }
 </style>

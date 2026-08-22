@@ -252,3 +252,19 @@ export interface QrPairingInfo {
   /** 配对码 */
   password: string;
 }
+
+// ============================================
+// WebSocket 实时通知
+// ============================================
+
+/** WebSocket 推送事件（后端结构为 { type, payload }） */
+export interface WsEvent<T = unknown> {
+  type: string;
+  payload: T;
+}
+
+/** 设备状态变更事件负载 */
+export interface DeviceChangedPayload {
+  action: 'connected' | 'disconnected' | 'updated';
+  device_id: string;
+}
