@@ -156,17 +156,19 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           mkdir -p dist-bundle
-          find src-tauri/target -type f \( -name '*.AppImage' -o -name '*.deb' \) -print | while read -r f; do cp "$f" dist-bundle/; done
+          BUNDLE_DIR="${GITHUB_WORKSPACE}/src-tauri/target/release/bundle"
+          echo "=== Looking in: $BUNDLE_DIR ==="
+          ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle dir not found"
+          find "$BUNDLE_DIR" -type f \( -name '*.AppImage' -o -name '*.deb' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Collect bundles (macOS)
         if: matrix.platform == 'macos'
         run: |
           mkdir -p dist-bundle
-          # Tauri 产物路径：src-tauri/target/release/bundle/
-          BUNDLE_DIR="src-tauri/target/release/bundle"
-          echo "=== Bundle directory contents ==="
-          ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle dir not found at $BUNDLE_DIR"
+          BUNDLE_DIR="${GITHUB_WORKSPACE}/src-tauri/target/release/bundle"
+          echo "=== Looking in: $BUNDLE_DIR ==="
+          ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle dir not found"
           find "$BUNDLE_DIR" -type f -name '*.dmg' -print | while read -r f; do cp "$f" dist-bundle/; done
           while IFS= read -r appdir; do
             appname=$(basename "$appdir")
@@ -179,10 +181,11 @@ jobs:
         shell: cmd
         run: |
           mkdir dist-bundle 2>nul
-          echo === Bundle directory check ===
-          dir src-tauri\target\release\bundle /s /b 2>nul || echo "Bundle dir not found"
+          set BUNDLE_DIR=%GITHUB_WORKSPACE%\src-tauri\target\release\bundle
+          echo === Looking in: %BUNDLE_DIR% ===
+          dir "%BUNDLE_DIR%" /s /b 2>nul || echo "Bundle dir not found"
           echo === Copying exe and msi ===
-          for /r "src-tauri\target\release\bundle" %%f in (*.exe *.msi) do copy "%%f" dist-bundle\
+          for /r "%BUNDLE_DIR%" %%f in (*.exe *.msi) do copy "%%f" dist-bundle\
           dir dist-bundle
 
       - name: Upload bundle artifact

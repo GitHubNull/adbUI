@@ -57,7 +57,7 @@ case "$PLATFORM" in
           echo "-- 检查 AppImage: $(basename "$f")"
           chmod +x "$f"
           tmpdir=$(mktemp -d)
-          (cd "$tmpdir" && "$f" --appimage-extract >/dev/null 2>&1) \
+          (cd "$tmpdir" && APPIMAGE_EXTRACT_AND_RUN=1 "$f" --appimage-extract >/dev/null 2>&1) \
             || fail "AppImage 解包失败: $f"
           bin=$(find "$tmpdir/squashfs-root/usr/bin" -maxdepth 1 -type f | head -n1)
           [ -n "$bin" ] || fail "AppImage 解包后未找到主二进制: $f"
