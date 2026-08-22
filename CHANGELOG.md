@@ -5,6 +5,16 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.13.0] - 2026-08-23
+
+### Added
+
+- 应用管理器新增应用图标提取与展示：后端新增 `get_app_icons` 命令，通过设备端 `app_process` 运行内嵌 dex 提取器（无需 root）批量导出应用图标
+- 新增设备端图标提取器源码（`icon-extractor/IconExtractor.java`）与构建脚本（`scripts/build-icon-dex.sh`），dex 产物编译期 `include_bytes` 嵌入，常规构建无需 Android SDK
+- 图标提取结果 zip 打包后 pull 回本地解压缓存（`zip` crate），缓存命中时不再连接设备；前端内存缓存 + 请求序号防竞态，失败包显示占位图标
+- 设置页新增图标缓存目录配置（`iconCacheDir`，默认 `./cache/icons`），相对路径基于应用启动运行目录；后端对路径穿越与非法条目做安全校验
+- 新增依赖：`zip` 2.4（deflate，关闭默认特性）；新增 `AppIconEntry` / `AppIconMap` 类型与 `useAppIcons` composable
+
 ## [0.12.0] - 2026-08-23
 
 ### Added

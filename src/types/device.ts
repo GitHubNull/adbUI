@@ -41,6 +41,15 @@ export interface AppInfo {
 
 export type AppFilter = 'all' | 'user' | 'system';
 
+/** 应用图标条目(后端 get_app_icons 返回,icon_base64 为 null 表示提取失败) */
+export interface AppIconEntry {
+  package_name: string;
+  icon_base64: string | null;
+}
+
+/** 应用图标映射:包名 -> data URL(空字符串表示获取失败,展示占位图标) */
+export type AppIconMap = Record<string, string>;
+
 // ============================================
 // 文件管理
 // ============================================

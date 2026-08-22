@@ -11,6 +11,7 @@ export interface AppSettings {
   theme: string;          // 主题 light/dark
   defaultTimeout: number; // 默认命令超时（秒）
   pollingInterval: number; // 设备轮询间隔（毫秒）
+  iconCacheDir: string;   // 应用图标缓存目录（相对路径基于应用启动运行目录）
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   theme: 'light',
   defaultTimeout: 10,
   pollingInterval: 3000,
+  iconCacheDir: './cache/icons',
 };
 
 export function useSettings() {

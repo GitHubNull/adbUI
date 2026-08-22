@@ -3,6 +3,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { DeviceInfo, AppInfo, TaskInfo } from '../types/device';
 import { useApps } from '../composables/useApps';
+import { useAppIcons } from '../composables/useAppIcons';
+import { useSettings } from '../composables/useSettings';
 import AppToolbar from '../components/app-manager/AppToolbar.vue';
 import AppTable from '../components/app-manager/AppTable.vue';
 import AppConfirmDialog from '../components/app-manager/AppConfirmDialog.vue';
@@ -30,6 +32,10 @@ const {
   installApk,
   batchUninstall,
 } = useApps();
+
+const { settings } = useSettings();
+// 应用图标:内存缓存 + 批量加载(后端磁盘缓存命中时秒显)
+const { icons, loadIcons, clearIcons } = useAppIcons();
 
 const selectedApps = ref<AppInfo[]>([]);
 const confirmVisible = ref(false);
@@ -94,6 +100,7 @@ const filteredApps = computed(() => {
 watch(
   () => props.selectedDevice,
   (device) => {
+    clearIcons(); // 清空旧设备图标,避免错位残留
     if (device) {
       fetchApps(device.id, currentFilter.value);
     } else {
@@ -102,6 +109,13 @@ watch(
   },
   { immediate: true }
 );
+
+// 应用列表就绪后并行批量加载图标(磁盘缓存命中时秒显,缺失包设备端提取)
+watch(apps, (list) => {
+  if (props.selectedDevice && list.length > 0) {
+    loadIcons(props.selectedDevice.id, list, settings.value.iconCacheDir);
+  }
+});
 
 // 生命周期：挂载时注册任务监听，卸载时清理
 onMounted(() => {
@@ -253,6 +267,7 @@ async function onBatchUninstall() {
         v-if="props.selectedDevice"
         :apps="filteredApps"
         :loading="loading"
+        :icons="icons"
         v-model:selected-apps="selectedApps"
         @force-stop="onForceStop"
         @clear-data="(app) => openConfirm('clear', app, `确定要清除 ${app.app_name} 的所有数据吗？此操作不可恢复。`)"

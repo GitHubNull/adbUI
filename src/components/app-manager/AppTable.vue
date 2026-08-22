@@ -3,12 +3,13 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
-import type { AppInfo } from '../../types/device';
+import type { AppInfo, AppIconMap } from '../../types/device';
 
 defineProps<{
   apps: AppInfo[];
   loading: boolean;
   selectedApps: AppInfo[];
+  icons: AppIconMap;
 }>();
 
 const emit = defineEmits<{
@@ -52,12 +53,17 @@ function getStatusLabel(app: AppInfo): string {
     <Column field="app_name" header="应用名">
       <template #body="{ data }">
         <div class="app-name-cell">
-          <span class="font-medium">{{ data.app_name }}</span>
-          <Tag
-            :value="getAppTypeLabel(data)"
-            :severity="getAppTypeSeverity(data)"
-            class="type-tag"
-          />
+          <!-- 应用图标:显示在应用名上方 -->
+          <img v-if="icons[data.package_name]" :src="icons[data.package_name]" class="app-icon" alt="" />
+          <div v-else class="app-icon app-icon-placeholder"><i class="pi pi-android"></i></div>
+          <div class="app-name-meta">
+            <span class="font-medium">{{ data.app_name }}</span>
+            <Tag
+              :value="getAppTypeLabel(data)"
+              :severity="getAppTypeSeverity(data)"
+              class="type-tag"
+            />
+          </div>
         </div>
       </template>
     </Column>
@@ -128,3 +134,35 @@ function getStatusLabel(app: AppInfo): string {
     </Column>
   </DataTable>
 </template>
+
+<style scoped>
+.app-name-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.app-name-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.app-icon-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-100);
+  color: var(--surface-500);
+  font-size: 1.1rem;
+}
+</style>

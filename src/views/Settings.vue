@@ -1,11 +1,18 @@
 <script setup lang="ts">
 import { useSettings } from '../composables/useSettings';
+import { open } from '@tauri-apps/plugin-dialog';
 
 const emit = defineEmits<{
   (e: 'toast', message: string, severity: string): void;
 }>();
 
 const { settings, save, reset } = useSettings();
+
+// 环境检测:浏览器 mock 模式无目录选择对话框
+function isTauri(): boolean {
+  return typeof window !== 'undefined' &&
+    (window as any).__TAURI_INTERNALS__ !== undefined;
+}
 
 function onSave() {
   save();
@@ -15,6 +22,15 @@ function onSave() {
 function onReset() {
   reset();
   emit('toast', '设置已恢复默认', 'info');
+}
+
+// 浏览选择应用图标缓存目录
+async function onBrowseIconDir() {
+  if (!isTauri()) return;
+  const selected = await open({ directory: true });
+  if (selected && typeof selected === 'string') {
+    settings.value.iconCacheDir = selected;
+  }
 }
 </script>
 
@@ -57,6 +73,14 @@ function onReset() {
       <div class="field">
         <label>设备轮询间隔（毫秒）</label>
         <InputNumber v-model="settings.pollingInterval" :min="1000" :max="30000" :step="500" class="w-full" />
+      </div>
+
+      <div class="field">
+        <label>应用图标缓存目录（相对路径基于应用启动运行目录，默认 ./cache/icons）</label>
+        <div class="icon-dir-row">
+          <InputText v-model="settings.iconCacheDir" placeholder="./cache/icons" class="w-full" />
+          <Button v-if="isTauri()" icon="pi pi-folder-open" text @click="onBrowseIconDir" v-tooltip.top="'浏览目录'" />
+        </div>
       </div>
 
       <div class="input-row">
@@ -133,5 +157,11 @@ function onReset() {
 .input-row {
   display: flex;
   gap: 0.5rem;
+}
+
+.icon-dir-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }
 </style>

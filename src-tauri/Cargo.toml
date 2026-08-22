@@ -1,6 +1,6 @@
 [package]
 name = "adbui"
-version = "0.12.0"
+version = "0.13.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -27,6 +27,7 @@ adb_client = { version = "3.2", features = ["mdns"] }
 tauri-plugin-dialog = "2.7.2"
 base64 = "0.22"
 image = "0.25"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 qrcode = "0.14"
 rand = "0.8"
 mdns-sd = "0.19"
