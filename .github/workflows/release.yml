@@ -110,9 +110,11 @@ jobs:
           - platform: macos
             os: macos-latest
             bundles: dmg,app
+          # 注意：MSI(WiX) 要求版本 pre-release 段纯数字（如 0.8.1.1），
+          # SemVer 字母标识（如 v0.8.1-test.1）会打包失败，故 Windows 仅构建 NSIS
           - platform: windows
             os: windows-latest
-            bundles: msi,nsis
+            bundles: nsis
     steps:
       - name: Checkout
         uses: actions/checkout@v4
