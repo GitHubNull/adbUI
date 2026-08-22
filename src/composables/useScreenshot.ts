@@ -16,9 +16,9 @@ function isTauri(): boolean {
 // Mock 数据
 // ============================================
 
-// 1x1 像素透明 PNG 的 base64
+// 1x1 像素不透明蓝色 PNG 的 base64（拉伸后为纯色块，便于浏览器模式验证预览效果）
 const MOCK_SCREENSHOT: ScreenshotResult = {
-  data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGOwbvr2HwAFYgKzn+LXXwAAAABJRU5ErkJggg==',
   width: 1080,
   height: 2400,
 };
