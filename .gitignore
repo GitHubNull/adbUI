@@ -31,6 +31,8 @@ lerna-debug.log*
 # ==================== Rust / Tauri 产物（src-tauri/.gitignore 亦有同名规则） ====================
 src-tauri/target/
 src-tauri/gen/schemas/
+# 应用图标运行时缓存（设备端提取的图标 PNG 落盘目录）
+src-tauri/cache/
 
 # ==================== 编辑器 / IDE ====================
 .vscode/*
