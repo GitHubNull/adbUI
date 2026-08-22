@@ -47,3 +47,4 @@ src-tauri/gen/schemas/
 .DS_Store
 Thumbs.db
 desktop.ini
+*.deb

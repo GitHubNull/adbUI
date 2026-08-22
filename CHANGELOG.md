@@ -5,44 +5,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.8.1-test.2] - 2026-08-22
+## [0.9.0-preview.1] - 2026-08-22
 
 ### Added
 
+- 新增 GitHub Actions 自动发布工作流（`.github/workflows/release.yml`），编译打包并发布 GitHub Release（含源码 tarball，Linux 平台）
 - 侧边栏激活项新增跑马灯边框动画效果（顶部/右侧/底部/左侧四边依次流光，2s 循环）
 
 ### Changed
 
 - 侧边栏导航图标更新：Shell 终端 `pi-terminal` → `pi-code`，电池模拟 `pi-battery` → `pi-bolt`
+- 移除 `tauri.conf.json` 全局 bundle `targets` 配置，改由 CI 按平台传入 `--bundles` 参数（deb / AppImage / msi / dmg），避免跨平台产物为空
+- 指定 `packageManager: pnpm@10.32.1` 供 GitHub Actions `pnpm/action-setup` 使用
 
 ### Fixed
 
-- Cargo.lock 中 `adbui` 包版本同步对齐为 0.8.1-test.2（此前遗漏同步至 0.8.1-test.1）
-
-## [0.8.1-test.1] - 2026-08-22
-
-### Fixed
-
-- resolve AppImage relative path after cd and macOS bash 3.2 unicode var parsing（ci） (`1354a51`)
-
-### Other
-
-- drop msi target on Windows (WiX requires numeric-only prerelease version) (`bfb00ae`)
-- fix empty macOS/Windows bundles by per-platform --bundles args (`d56855f`)
-- use GITHUB_WORKSPACE for bundle paths and fix AppImage extract (`0b527f2`)
-- use cmd for Windows bundle collection (`8991570`)
-- use PowerShell for Windows bundle collection (`c676f63`)
-- debug Windows bundle path with explicit ls and find (`3376214`)
-- use workspace-wide search for Windows bundle artifacts (`9fcdabc`)
-- use explicit bundle path for cross-platform artifact collection (`1c0a42c`)
-- add debug output for macOS bundle discovery (`7771434`)
-- remove erroneous -prune from find that skipped bundle directories (`f2fc92b`)
-- move source tarball generation to release job (Linux only) (`7ff0f92`)
-- fix bundle collection paths for macOS/Windows cross-compilation targets (`959f047`)
-- fix macOS bundle collection (find -exec tar path issue) (`02a0456`)
-- specify packageManager pnpm@10.32.1 for pnpm/action-setup (`40c4af1`)
-- bump version to 0.8.1-test.1（release） (`b764de0`)
-- add GitHub Actions release workflow (`34fe05d`)
+- 修复 Windows 打包：放弃 msi target（WiX 要求纯数字预发布版本号），改用 bundle 产物收集流程（cmd / PowerShell）
+- 修复 macOS / Windows 跨编译产物为空：bundle 路径改用 `GITHUB_WORKSPACE` 基准 + 工作区级搜索，修正 `find -prune` 误跳过 bundle 目录、`find -exec tar` 路径问题
+- 修复 AppImage 相对路径在 `cd` 后失效的问题，并兼容 macOS bash 3.2 的 unicode 变量解析
+- Cargo.lock 中 `adbui` 包版本同步对齐为 0.9.0-preview.1（此前遗漏同步）
 
 ## [0.8.0] - 2026-08-22
 
