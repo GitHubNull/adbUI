@@ -156,18 +156,20 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           mkdir -p dist-bundle
-          find src-tauri/target/release/bundle -type f \( -name '*.AppImage' -o -name '*.deb' \) -exec cp {} dist-bundle/ \;
+          find src-tauri/target -path '*/release/bundle' -prune -o -type f \( -name '*.AppImage' -o -name '*.deb' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Collect bundles (macOS)
         if: matrix.platform == 'macos'
         run: |
           mkdir -p dist-bundle
-          find src-tauri/target/release/bundle -type f -name '*.dmg' -exec cp {} dist-bundle/ \;
+          echo "=== Bundle directory structure ==="
+          find src-tauri/target -type d -name 'bundle' 2>/dev/null | head -5
+          find src-tauri/target -path '*/release/bundle' -prune -o -type f -name '*.dmg' -print | while read -r f; do cp "$f" dist-bundle/; done
           while IFS= read -r appdir; do
             appname=$(basename "$appdir")
             tar -czf "dist-bundle/${appname}.tar.gz" -C "$(dirname "$appdir")" "$appname"
-          done < <(find src-tauri/target/release/bundle -type d -name '*.app')
+          done < <(find src-tauri/target -type d -name '*.app' 2>/dev/null | head -5)
           ls -lh dist-bundle/
 
       - name: Collect bundles (Windows)
@@ -175,7 +177,9 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist-bundle
-          find src-tauri/target/release/bundle -type f \( -name '*.exe' -o -name '*.msi' \) -exec cp {} dist-bundle/ \;
+          echo "=== Bundle directory structure ==="
+          find src-tauri/target -type d -name 'bundle' 2>/dev/null | head -5
+          find src-tauri/target -path '*/release/bundle' -prune -o -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Create source tarball
