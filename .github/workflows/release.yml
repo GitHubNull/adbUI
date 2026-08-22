@@ -179,10 +179,12 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist-bundle
-          BUNDLE_DIR="src-tauri/target/release/bundle"
-          echo "=== Bundle directory contents ==="
-          ls -la "$BUNDLE_DIR" 2>/dev/null || echo "Bundle dir not found at $BUNDLE_DIR"
-          find "$BUNDLE_DIR" -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
+          # Windows 路径可能不同，先搜索整个工作区
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Searching for exe/msi ==="
+          find . -type f \( -name '*.exe' -o -name '*.msi' \) -path '*/bundle/*' 2>/dev/null
+          find . -type f \( -name '*.exe' -o -name '*.msi' \) -path '*/bundle/*' -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Upload bundle artifact
