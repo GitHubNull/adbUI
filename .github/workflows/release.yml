@@ -163,14 +163,19 @@ jobs:
         if: matrix.platform == 'macos'
         run: |
           mkdir -p dist-bundle
-          echo "=== Bundle directory structure ==="
-          find src-tauri/target -type d -name 'bundle' 2>/dev/null | head -5
+          echo "=== Target directory structure ==="
+          find src-tauri/target -maxdepth 3 -type d 2>/dev/null | sort
+          echo "=== Searching for dmg files ==="
+          find src-tauri/target -type f -name '*.dmg' 2>/dev/null
+          echo "=== Searching for app directories ==="
+          find src-tauri/target -type d -name '*.app' 2>/dev/null
           find src-tauri/target -type f -name '*.dmg' -print | while read -r f; do cp "$f" dist-bundle/; done
           while IFS= read -r appdir; do
             appname=$(basename "$appdir")
             tar -czf "dist-bundle/${appname}.tar.gz" -C "$(dirname "$appdir")" "$appname"
           done < <(find src-tauri/target -type d -name '*.app' 2>/dev/null | head -5)
-          ls -lh dist-bundle/
+          echo "=== dist-bundle contents ==="
+          ls -lh dist-bundle/ || echo "dist-bundle is empty"
 
       - name: Collect bundles (Windows)
         if: matrix.platform == 'windows'
