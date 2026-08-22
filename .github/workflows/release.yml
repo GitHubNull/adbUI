@@ -182,9 +182,6 @@ jobs:
           find src-tauri/target -path '*/release/bundle' -prune -o -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
-      - name: Create source tarball
-        run: git archive --format=tar.gz --prefix=adbui-${RELEASE_TAG#v}/ -o dist-bundle/adbui-${RELEASE_TAG#v}-source.tar.gz ${RELEASE_TAG}
-
       - name: Upload bundle artifact
         uses: actions/upload-artifact@v4
         with:
@@ -248,6 +245,9 @@ jobs:
         with:
           path: dist-all/
           merge-multiple: true
+
+      - name: Create source tarball
+        run: git archive --format=tar.gz --prefix=adbui-${RELEASE_TAG#v}/ -o dist-all/adbui-${RELEASE_TAG#v}-source.tar.gz ${RELEASE_TAG}
 
       - name: Setup Node.js (for changelog script)
         uses: actions/setup-node@v4
