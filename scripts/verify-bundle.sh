@@ -27,7 +27,9 @@ fail() {
 [ -n "$PLATFORM" ] && [ -n "$DIR" ] || fail "用法: bash scripts/verify-bundle.sh <linux|windows|macos> <artifact-dir>"
 [ -d "$DIR" ] || fail "产物目录不存在: $DIR"
 
-echo "== 验证平台: $PLATFORM，目录: $DIR =="
+# 注意：变量名后用花括号界定，避免 macOS 自带 bash 3.2 在 UTF-8 locale 下
+# 把中文首字节误当作变量名字符（导致 unbound variable）
+echo "== 验证平台: ${PLATFORM}，目录: ${DIR} =="
 
 # 收集产物文件（按平台过滤）
 # 注意: macOS 的 .app 目录在 build job 中已打包为 .app.tar.gz 上传，此处不匹配目录
@@ -57,7 +59,9 @@ case "$PLATFORM" in
           echo "-- 检查 AppImage: $(basename "$f")"
           chmod +x "$f"
           tmpdir=$(mktemp -d)
-          (cd "$tmpdir" && APPIMAGE_EXTRACT_AND_RUN=1 "$f" --appimage-extract >/dev/null 2>&1) \
+          # $f 可能是相对路径，cd 到 tmpdir 后必须用绝对路径，否则文件找不到
+          f_abs=$(readlink -f "$f")
+          (cd "$tmpdir" && APPIMAGE_EXTRACT_AND_RUN=1 "$f_abs" --appimage-extract >/dev/null 2>&1) \
             || fail "AppImage 解包失败: $f"
           bin=$(find "$tmpdir/squashfs-root/usr/bin" -maxdepth 1 -type f | head -n1)
           [ -n "$bin" ] || fail "AppImage 解包后未找到主二进制: $f"
