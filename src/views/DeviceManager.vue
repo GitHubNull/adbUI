@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useDeviceReport } from '../composables/useDeviceReport';
 import type { DeviceInfo, DeviceDetail } from '../types/device';
+import WirelessConnectDialog from '../components/device-manager/WirelessConnectDialog.vue';
 
 const props = defineProps<{
   devices: DeviceInfo[];
@@ -15,6 +16,25 @@ const emit = defineEmits<{
   (e: 'refresh'): void;
   (e: 'toast', message: string, severity: string): void;
 }>();
+
+// 无线连接对话框
+const showWirelessDialog = ref(false);
+
+function openWirelessDialog() {
+  showWirelessDialog.value = true;
+}
+
+function onDeviceConnected(deviceId: string) {
+  // 刷新设备列表
+  emit('refresh');
+  // 延迟后选中新设备（等待列表刷新）
+  setTimeout(() => {
+    const newDevice = props.devices.find(d => d.id === deviceId);
+    if (newDevice) {
+      emit('select', newDevice);
+    }
+  }, 500);
+}
 
 // ============ 设备信息报告（从 DeviceInfoReport 合并） ============
 const { report, loading: reportLoading, fetchReport, exportReport } = useDeviceReport();
@@ -86,6 +106,12 @@ function getConnectionIcon(connection: string): string {
         </span>
       </div>
       <div class="toolbar-right">
+        <Button
+          icon="pi pi-wifi"
+          label="无线连接"
+          severity="primary"
+          @click="openWirelessDialog"
+        />
         <Button
           icon="pi pi-refresh"
           label="刷新"
@@ -354,6 +380,13 @@ function getConnectionIcon(connection: string): string {
         </div>
       </div>
     </div>
+
+    <!-- 无线连接对话框 -->
+    <WirelessConnectDialog
+      v-model:visible="showWirelessDialog"
+      @connected="onDeviceConnected"
+      @toast="(msg, sev) => emit('toast', msg, sev)"
+    />
   </div>
 </template>
 

@@ -1,6 +1,10 @@
 use adb_client::server::ADBServer;
 use adb_client::server_device::ADBServerDevice;
+use adb_client::mdns::MDNSDiscoveryService;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
+use std::sync::mpsc::channel;
+use std::time::Duration;
 use tauri::State;
 
 use super::helpers::*;
@@ -144,4 +148,93 @@ pub async fn execute_adb(
     record_command(&state_clone, &cmd, &result, &dev_id);
 
     Ok(result)
+}
+
+#[tauri::command]
+pub async fn connect_device(ip: String, port: u16) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let ip_addr: Ipv4Addr = ip
+            .parse()
+            .map_err(|e| format!("Invalid IP address '{}': {}", ip, e))?;
+        let addr = SocketAddrV4::new(ip_addr, port);
+
+        let mut server = ADBServer::default();
+        server
+            .connect_device(addr)
+            .map_err(|e| format!("Failed to connect to {}:{}: {}", ip, port, e))?;
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn disconnect_device(ip: String, port: u16) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        let ip_addr: Ipv4Addr = ip
+            .parse()
+            .map_err(|e| format!("Invalid IP address '{}': {}", ip, e))?;
+        let addr = SocketAddrV4::new(ip_addr, port);
+
+        let mut server = ADBServer::default();
+        server
+            .disconnect_device(addr)
+            .map_err(|e| format!("Failed to disconnect from {}:{}: {}", ip, port, e))?;
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn scan_network_devices() -> Result<Vec<NetworkDevice>, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut discovery = MDNSDiscoveryService::new()
+            .map_err(|e| format!("Failed to create mDNS discovery service: {}", e))?;
+
+        let (sender, receiver) = channel();
+
+        discovery
+            .start(sender)
+            .map_err(|e| format!("Failed to start mDNS discovery: {}", e))?;
+
+        // 收集设备，等待 3 秒
+        let mut devices: Vec<NetworkDevice> = Vec::new();
+        let timeout = Duration::from_secs(3);
+        let start = std::time::Instant::now();
+
+        while start.elapsed() < timeout {
+            match receiver.recv_timeout(Duration::from_millis(500)) {
+                Ok(mdns_device) => {
+                    // 优先使用 IPv4 地址
+                    if let Some(ipv4) = mdns_device.ipv4_addresses().iter().next() {
+                        devices.push(NetworkDevice {
+                            ip: ipv4.to_string(),
+                            port: mdns_device.port().get(),
+                            fullname: mdns_device.fullname.clone(),
+                        });
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // 继续等待
+                    continue;
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    break;
+                }
+            }
+        }
+
+        // 去重（基于 IP 和端口）
+        devices.sort_by(|a, b| (&a.ip, a.port).cmp(&(&b.ip, b.port)));
+        devices.dedup_by(|a, b| a.ip == b.ip && a.port == b.port);
+
+        let _ = discovery.shutdown();
+
+        Ok(devices)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }

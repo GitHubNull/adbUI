@@ -225,3 +225,14 @@ export interface CommandHistoryEntry {
   timestamp: string;
   device_id: string;
 }
+
+// ============================================
+// 网络设备扫描
+// ============================================
+
+/** mDNS 发现的网络设备 */
+export interface NetworkDevice {
+  ip: string;
+  port: number;
+  fullname: string;
+}

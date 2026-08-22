@@ -5,6 +5,15 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.9.0-preview.2] - 2026-08-22
+
+### Added
+
+- 设备管理器新增无线连接（Wi-Fi）功能：扫描局域网 ADB 设备（mDNS）、按 IP:端口 连接/断开设备
+- 新增 `WirelessConnectDialog.vue` 无线连接对话框，支持自动扫描与手动输入 IP 连接，并提供浏览器 Mock 模式
+- 后端新增 `connect_device` / `disconnect_device` / `scan_network_devices` 命令，`adb_client` 启用 `mdns` feature
+- 新增 `NetworkDevice` 数据模型（IP / 端口 / 服务全名），扫描结果按 IP+端口去重
+
 ## [0.9.0-preview.1] - 2026-08-22
 
 ### Added

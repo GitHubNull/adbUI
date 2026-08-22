@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import type { DeviceInfo, DeviceDetail, AdbResult } from '../types/device';
+import type { DeviceInfo, DeviceDetail, AdbResult, NetworkDevice } from '../types/device';
 
 const POLLING_INTERVAL = 5000; // 5 seconds
 
@@ -39,6 +39,8 @@ export function useDevices() {
   const selectedDevice = ref<DeviceInfo | null>(null);
   const deviceDetail = ref<DeviceDetail | null>(null);
   const detailLoading = ref(false);
+  const isConnecting = ref(false);
+  const isScanning = ref(false);
 
   let pollingTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -137,6 +139,49 @@ export function useDevices() {
     }
   }
 
+  async function connectDevice(ip: string, port: number): Promise<void> {
+    isConnecting.value = true;
+    try {
+      if (isTauri()) {
+        await invoke('connect_device', { ip, port });
+      } else {
+        // Browser mock mode
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        console.log(`(Mock) Connected to ${ip}:${port}`);
+      }
+    } finally {
+      isConnecting.value = false;
+    }
+  }
+
+  async function disconnectDevice(ip: string, port: number): Promise<void> {
+    if (isTauri()) {
+      await invoke('disconnect_device', { ip, port });
+    } else {
+      // Browser mock mode
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      console.log(`(Mock) Disconnected from ${ip}:${port}`);
+    }
+  }
+
+  async function scanNetworkDevices(): Promise<NetworkDevice[]> {
+    isScanning.value = true;
+    try {
+      if (isTauri()) {
+        return await invoke<NetworkDevice[]>('scan_network_devices');
+      } else {
+        // Browser mock mode
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        return [
+          { ip: '192.168.1.100', port: 5555, fullname: 'mock-device-1._adb-tls-connect._tcp.local.' },
+          { ip: '192.168.1.101', port: 5555, fullname: 'mock-device-2._adb-tls-connect._tcp.local.' },
+        ];
+      }
+    } finally {
+      isScanning.value = false;
+    }
+  }
+
   onMounted(() => {
     startPolling();
   });
@@ -152,11 +197,16 @@ export function useDevices() {
     selectedDevice,
     deviceDetail,
     detailLoading,
+    isConnecting,
+    isScanning,
     fetchDevices,
     startPolling,
     stopPolling,
     refreshDevices,
     selectDevice,
     executeAdbCommand,
+    connectDevice,
+    disconnectDevice,
+    scanNetworkDevices,
   };
 }

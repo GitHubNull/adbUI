@@ -39,3 +39,10 @@ pub struct DeviceDetail {
     pub device: String,
     pub battery_level: Option<i32>,
 }
+
+#[derive(Serialize, Clone, Debug)]
+pub struct NetworkDevice {
+    pub ip: String,
+    pub port: u16,
+    pub fullname: String,
+}

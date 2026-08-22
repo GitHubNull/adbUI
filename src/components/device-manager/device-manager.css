@@ -231,6 +231,11 @@
   text-align: right;
 }
 
+.toolbar-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
 @media (max-width: 1024px) {
   .content-grid {
     grid-template-columns: 1fr;
