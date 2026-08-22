@@ -5,6 +5,31 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.8.1-test.1] - 2026-08-22
+
+### Fixed
+
+- resolve AppImage relative path after cd and macOS bash 3.2 unicode var parsing（ci） (`1354a51`)
+
+### Other
+
+- drop msi target on Windows (WiX requires numeric-only prerelease version) (`bfb00ae`)
+- fix empty macOS/Windows bundles by per-platform --bundles args (`d56855f`)
+- use GITHUB_WORKSPACE for bundle paths and fix AppImage extract (`0b527f2`)
+- use cmd for Windows bundle collection (`8991570`)
+- use PowerShell for Windows bundle collection (`c676f63`)
+- debug Windows bundle path with explicit ls and find (`3376214`)
+- use workspace-wide search for Windows bundle artifacts (`9fcdabc`)
+- use explicit bundle path for cross-platform artifact collection (`1c0a42c`)
+- add debug output for macOS bundle discovery (`7771434`)
+- remove erroneous -prune from find that skipped bundle directories (`f2fc92b`)
+- move source tarball generation to release job (Linux only) (`7ff0f92`)
+- fix bundle collection paths for macOS/Windows cross-compilation targets (`959f047`)
+- fix macOS bundle collection (find -exec tar path issue) (`02a0456`)
+- specify packageManager pnpm@10.32.1 for pnpm/action-setup (`40c4af1`)
+- bump version to 0.8.1-test.1（release） (`b764de0`)
+- add GitHub Actions release workflow (`34fe05d`)
+
 ## [0.8.0] - 2026-08-22
 
 ### Added
