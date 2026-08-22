@@ -95,7 +95,7 @@ function navigate(view: string) {
   display: flex;
   flex-direction: column;
   width: 220px;
-  height: 100vh;
+  height: 100%;
   min-height: 0;
   background: var(--surface-card);
   border-right: 1px solid var(--surface-200);

@@ -170,14 +170,9 @@ async function onDisconnectDevice(device: DeviceInfo) {
   box-sizing: border-box;
 }
 
-:global(html), :global(body), :global(#app) {
-  height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
 .app-layout {
   display: flex;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -215,5 +210,18 @@ async function onDisconnectDevice(device: DeviceInfo) {
   color: var(--p-text-color);
   font-size: 1.5rem;
   text-transform: capitalize;
+}
+</style>
+
+<style>
+/* 全局重置:清除浏览器默认 margin/padding,防止 100% 布局溢出产生窗口级滚动条 */
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 </style>

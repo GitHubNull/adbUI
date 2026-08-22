@@ -5,6 +5,13 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.13.1] - 2026-08-23
+
+### Fixed
+
+- 修复布局溢出产生窗口级滚动条：全局样式重构，`html/body/#app` 清除默认 `margin/padding` 并设置 `overflow: hidden`
+- `.app-layout` 与侧边栏高度由 `100vh` 改为 `100%`，配合全局重置消除窗口滚动条
+
 ## [0.13.0] - 2026-08-23
 
 ### Added
