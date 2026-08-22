@@ -156,7 +156,7 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           mkdir -p dist-bundle
-          find src-tauri/target -path '*/release/bundle' -prune -o -type f \( -name '*.AppImage' -o -name '*.deb' \) -print | while read -r f; do cp "$f" dist-bundle/; done
+          find src-tauri/target -type f \( -name '*.AppImage' -o -name '*.deb' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Collect bundles (macOS)
@@ -165,7 +165,7 @@ jobs:
           mkdir -p dist-bundle
           echo "=== Bundle directory structure ==="
           find src-tauri/target -type d -name 'bundle' 2>/dev/null | head -5
-          find src-tauri/target -path '*/release/bundle' -prune -o -type f -name '*.dmg' -print | while read -r f; do cp "$f" dist-bundle/; done
+          find src-tauri/target -type f -name '*.dmg' -print | while read -r f; do cp "$f" dist-bundle/; done
           while IFS= read -r appdir; do
             appname=$(basename "$appdir")
             tar -czf "dist-bundle/${appname}.tar.gz" -C "$(dirname "$appdir")" "$appname"
@@ -179,7 +179,7 @@ jobs:
           mkdir -p dist-bundle
           echo "=== Bundle directory structure ==="
           find src-tauri/target -type d -name 'bundle' 2>/dev/null | head -5
-          find src-tauri/target -path '*/release/bundle' -prune -o -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
+          find src-tauri/target -type f \( -name '*.exe' -o -name '*.msi' \) -print | while read -r f; do cp "$f" dist-bundle/; done
           ls -lh dist-bundle/
 
       - name: Upload bundle artifact
