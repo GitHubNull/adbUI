@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { DeviceInfo, AppInfo, TaskInfo } from '../types/device';
+import type { DeviceInfo, AppInfo, AppDetail, TaskInfo } from '../types/device';
 import { useApps } from '../composables/useApps';
 import { useAppIcons } from '../composables/useAppIcons';
 import { useSettings } from '../composables/useSettings';
 import AppToolbar from '../components/app-manager/AppToolbar.vue';
 import AppTable from '../components/app-manager/AppTable.vue';
 import AppConfirmDialog from '../components/app-manager/AppConfirmDialog.vue';
+import AppDetailDialog from '../components/app-manager/AppDetailDialog.vue';
 
 const props = defineProps<{
   selectedDevice: DeviceInfo | null;
@@ -17,12 +18,19 @@ const emit = defineEmits<{
   (e: 'toast', message: string, severity: string): void;
 }>();
 
+// 环境检测：浏览器/mock 模式下无 Tauri 事件监听
+function isTauri(): boolean {
+  return typeof window !== 'undefined' &&
+    (window as any).__TAURI_INTERNALS__ !== undefined;
+}
+
 const {
   apps,
   loading,
   currentFilter,
   searchQuery,
   fetchApps,
+  getAppDetail,
   uninstallApp,
   forceStopApp,
   clearAppData,
@@ -43,6 +51,12 @@ const confirmAction = ref('');
 const confirmTarget = ref<AppInfo | null>(null);
 const confirmMessage = ref('');
 
+// 应用详情弹窗状态
+const detailVisible = ref(false);
+const detailApp = ref<AppInfo | null>(null);
+const detailLoading = ref(false);
+const detail = ref<AppDetail | null>(null);
+
 // 记录正在进行的批量卸载任务 ID，用于监听完成事件后刷新列表
 const pendingBatchTaskId = ref<string | null>(null);
 let taskUnlisten: UnlistenFn | null = null;
@@ -52,6 +66,7 @@ let taskUnlisten: UnlistenFn | null = null;
 // ============================================
 
 async function setupTaskListener() {
+  if (!isTauri()) return; // Mock 模式无 Tauri 事件监听
   if (taskUnlisten) return;
   try {
     taskUnlisten = await listen<TaskInfo>('task-progress', (event) => {
@@ -131,6 +146,26 @@ function onFilterChange(event: any) {
   currentFilter.value = filter as any;
   // 类型过滤为本地即时过滤，无需重新请求后端
   selectedApps.value = [];
+}
+
+// ============================================
+// 应用详情弹窗（右键菜单 / 双击行触发）
+// ============================================
+
+async function openDetail(app: AppInfo) {
+  if (!props.selectedDevice) return;
+  detailApp.value = app;
+  detail.value = null;
+  detailVisible.value = true;
+  // 按需拉取详情（大小 / 安装来源 / SDK 等），失败时仍展示基础字段
+  detailLoading.value = true;
+  try {
+    detail.value = await getAppDetail(props.selectedDevice.id, app.package_name);
+  } catch (err) {
+    emit('toast', String(err), 'error');
+  } finally {
+    detailLoading.value = false;
+  }
 }
 
 // ============================================
@@ -274,6 +309,7 @@ async function onBatchUninstall() {
         @freeze="onFreeze"
         @extract-apk="onExtractApk"
         @uninstall="(app) => openConfirm('uninstall', app, `确定要卸载 ${app.app_name} 吗？`)"
+        @view-detail="openDetail"
       />
 
       <!-- Empty State -->
@@ -295,6 +331,15 @@ async function onBatchUninstall() {
       v-model:visible="confirmVisible"
       :message="confirmMessage"
       @confirm="executeConfirmed"
+    />
+
+    <!-- App Detail Dialog -->
+    <AppDetailDialog
+      v-model:visible="detailVisible"
+      :app="detailApp"
+      :detail="detail"
+      :loading="detailLoading"
+      :icon="detailApp ? (icons[detailApp.package_name] || '') : ''"
     />
   </div>
 </template>

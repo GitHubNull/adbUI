@@ -39,6 +39,28 @@ export interface AppInfo {
   apk_path: string;
 }
 
+/** 应用详情（get_app_detail 返回，含大小 / 安装来源 / SDK 等扩展字段） */
+export interface AppDetail extends AppInfo {
+  /** 安装来源（应用商店包名，如 com.android.vending） */
+  installer_package: string;
+  /** APK 本体总大小（字节） */
+  code_size: number;
+  /** 用户数据大小（字节，非 root 设备不可获取，为 null） */
+  data_size: number | null;
+  /** 缓存大小（字节，非 root 设备不可获取，为 null） */
+  cache_size: number | null;
+  /** 目标 SDK 版本 */
+  target_sdk: string;
+  /** 最低 SDK 版本 */
+  min_sdk: string;
+  /** 首次安装时间 */
+  first_install_time: string;
+  /** 最近更新时间 */
+  last_update_time: string;
+  /** 应用 UID */
+  uid: string;
+}
+
 export type AppFilter = 'all' | 'user' | 'system';
 
 /** 应用图标条目(后端 get_app_icons 返回,icon_base64 为 null 表示提取失败) */

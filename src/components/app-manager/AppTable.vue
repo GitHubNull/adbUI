@@ -1,8 +1,15 @@
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
+import ContextMenu from 'primevue/contextmenu';
+import type { MenuItem } from 'primevue/menuitem';
+import type {
+  DataTableRowContextMenuEvent,
+  DataTableRowDoubleClickEvent,
+} from 'primevue/datatable';
 import type { AppInfo, AppIconMap } from '../../types/device';
 
 defineProps<{
@@ -19,6 +26,7 @@ const emit = defineEmits<{
   (e: 'freeze', app: AppInfo): void;
   (e: 'extractApk', app: AppInfo): void;
   (e: 'uninstall', app: AppInfo): void;
+  (e: 'viewDetail', app: AppInfo): void;
 }>();
 
 // 行背景区分：用户应用 / 系统应用不同底色
@@ -40,6 +48,68 @@ function getStatusSeverity(app: AppInfo): string {
 function getStatusLabel(app: AppInfo): string {
   return app.is_enabled ? '已启用' : '已冻结';
 }
+
+// ============================================
+// 右键菜单 + 双击查看详情
+// ============================================
+
+const cm = ref();
+const contextApp = ref<AppInfo | null>(null);
+
+// 右键菜单模型：随当前右键目标动态生成（冻结/解冻文案与图标随状态切换）
+const menuModel = computed<MenuItem[]>(() => {
+  const app = contextApp.value;
+  const run = (fn: (a: AppInfo) => void) => () => {
+    if (app) fn(app);
+  };
+  return [
+    {
+      label: '查看详情',
+      icon: 'pi pi-info-circle',
+      command: run((a) => emit('viewDetail', a)),
+    },
+    { separator: true },
+    {
+      label: '强制停止',
+      icon: 'pi pi-stop',
+      command: run((a) => emit('forceStop', a)),
+    },
+    {
+      label: '清除数据',
+      icon: 'pi pi-eraser',
+      command: run((a) => emit('clearData', a)),
+    },
+    {
+      label: app?.is_enabled ? '冻结应用' : '解冻应用',
+      icon: app?.is_enabled ? 'pi pi-lock' : 'pi pi-lock-open',
+      command: run((a) => emit('freeze', a)),
+    },
+    {
+      label: '提取 APK',
+      icon: 'pi pi-download',
+      command: run((a) => emit('extractApk', a)),
+    },
+    { separator: true },
+    {
+      label: '卸载',
+      icon: 'pi pi-trash',
+      class: 'menu-item-danger',
+      command: run((a) => emit('uninstall', a)),
+    },
+  ];
+});
+
+function onRowContextMenu(event: DataTableRowContextMenuEvent) {
+  contextApp.value = event.data as AppInfo;
+  cm.value?.show(event.originalEvent); // 在鼠标位置显示菜单
+}
+
+function onRowDblClick(event: DataTableRowDoubleClickEvent) {
+  const target = event.originalEvent.target as HTMLElement;
+  // 双击操作按钮 / 复选框时忽略，避免误触发详情
+  if (target.closest('button') || target.closest('input') || target.closest('.p-checkbox')) return;
+  emit('viewDetail', event.data as AppInfo);
+}
 </script>
 
 <template>
@@ -51,6 +121,9 @@ function getStatusLabel(app: AppInfo): string {
     :loading="loading"
     :row-class="getRowClass"
     class="app-table"
+    context-menu
+    @row-contextmenu="onRowContextMenu"
+    @row-dblclick="onRowDblClick"
   >
     <Column selection-mode="multiple" style="width: 40px" />
 
@@ -146,6 +219,9 @@ function getStatusLabel(app: AppInfo): string {
       </template>
     </Column>
   </DataTable>
+
+  <!-- 行右键菜单：查看详情与常用操作 -->
+  <ContextMenu ref="cm" :model="menuModel" />
 </template>
 
 <style scoped>
@@ -201,6 +277,15 @@ function getStatusLabel(app: AppInfo): string {
 
 :deep(.p-datatable-tbody > tr.app-row-system:hover) {
   background: color-mix(in srgb, var(--p-sky-500), transparent 88%);
+}
+
+/* 右键菜单"卸载"项：与行内卸载按钮一致的 danger 配色 */
+:deep(.p-contextmenu .menu-item-danger) {
+  color: var(--p-red-500);
+}
+
+:deep(.p-contextmenu .menu-item-danger .p-contextmenu-item-icon) {
+  color: var(--p-red-500);
 }
 
 /* 类型图标徽章 */

@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import type { AppInfo, AppFilter, AdbResult } from '../types/device';
+import type { AppInfo, AppDetail, AppFilter, AdbResult } from '../types/device';
 import { useAppStatus } from './useAppStatus';
 
 // ============================================
@@ -124,6 +124,34 @@ export function useApps() {
       }
       endRefresh();
     }
+  }
+
+  // ============================================
+  // 应用详情（弹窗打开时按需获取，一次 dumpsys 调用）
+  // ============================================
+
+  async function getAppDetail(deviceId: string, packageName: string): Promise<AppDetail> {
+    if (isTauri()) {
+      return await invoke<AppDetail>('get_app_detail', {
+        deviceId,
+        package: packageName,
+      });
+    }
+    // Mock 模式：基于列表数据模拟详情
+    await new Promise((r) => setTimeout(r, 400));
+    const base = MOCK_APPS.find((a) => a.package_name === packageName) ?? MOCK_APPS[0];
+    return {
+      ...base,
+      installer_package: 'com.android.vending',
+      code_size: 248931374,
+      data_size: 14581234,
+      cache_size: 0,
+      target_sdk: '34',
+      min_sdk: '29',
+      first_install_time: '2024-01-01 10:00:00',
+      last_update_time: '2024-01-02 11:00:00',
+      uid: '10067',
+    };
   }
 
   // ============================================
@@ -263,6 +291,7 @@ export function useApps() {
     currentFilter,
     searchQuery,
     fetchApps,
+    getAppDetail,
     uninstallApp,
     forceStopApp,
     clearAppData,

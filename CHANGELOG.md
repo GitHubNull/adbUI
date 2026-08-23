@@ -5,6 +5,16 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.14.0] - 2026-08-23
+
+### Added
+
+- 应用管理器新增应用详情查看：后端新增 `get_app_detail` 命令，解析 `dumpsys package` 获取安装来源、APK/数据/缓存大小、目标/最低 SDK、首次安装与更新时间、UID 等扩展字段
+- APK 大小兜底：部分 ROM 的 `dumpsys` 无 `codeSize` 字段时，用 `pm path + stat` 逐文件累加（无需 root）；非 root 设备数据/缓存大小返回 null
+- 系统应用判定兜底：优先 `SYSTEM` flag，其次 `pm list packages -s` 集合与 `/system/` 等路径前缀
+- 新增 `AppDetailDialog.vue` 应用详情对话框（基础信息 + 扩展信息），应用列表行新增详情入口
+- 新增 `AppDetail` 类型与 `useApps` 的 `fetchAppDetail` 方法
+
 ## [0.13.2] - 2026-08-23
 
 ### Fixed

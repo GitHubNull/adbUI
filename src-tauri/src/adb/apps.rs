@@ -21,6 +21,36 @@ pub struct AppInfo {
     pub apk_path: String,
 }
 
+/// 应用详情（get_app_detail 返回，含大小 / 安装来源 / SDK 等扩展字段）
+#[derive(Serialize, Clone, Debug)]
+pub struct AppDetail {
+    pub package_name: String,
+    pub app_name: String,
+    pub version_name: String,
+    pub version_code: String,
+    pub is_system: bool,
+    pub is_enabled: bool,
+    pub apk_path: String,
+    /// 安装来源（应用商店包名，如 com.android.vending）
+    pub installer_package: String,
+    /// APK 本体总大小（字节，dumpsys 缺失时 pm path + stat 累加兜底）
+    pub code_size: u64,
+    /// 用户数据大小（字节，非 root 设备不可获取，为 null）
+    pub data_size: Option<u64>,
+    /// 缓存大小（字节，非 root 设备不可获取，为 null）
+    pub cache_size: Option<u64>,
+    /// 目标 SDK 版本
+    pub target_sdk: String,
+    /// 最低 SDK 版本
+    pub min_sdk: String,
+    /// 首次安装时间
+    pub first_install_time: String,
+    /// 最近更新时间
+    pub last_update_time: String,
+    /// 应用 UID
+    pub uid: String,
+}
+
 // ============================================
 // 应用管理命令
 // ============================================
@@ -254,6 +284,127 @@ pub async fn list_apps(device_id: String, _filter: String) -> Result<Vec<AppInfo
         // 按应用名排序
         apps.sort_by(|a, b| a.app_name.to_lowercase().cmp(&b.app_name.to_lowercase()));
         Ok(apps)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn get_app_detail(device_id: String, package: String) -> Result<AppDetail, String> {
+    tokio::task::spawn_blocking(move || {
+        let mut device = ADBServerDevice::new(device_id.clone(), None);
+
+        // 1. 从全量包列表（含 APK 路径）中定位目标包
+        let (stdout, _, _) = execute_shell_command(&mut device, "pm list packages -f")?;
+        let packages = parse_package_list(&stdout);
+        let apk_path = packages
+            .iter()
+            .find(|(pkg, _)| pkg == &package)
+            .map(|(_, path)| path.clone())
+            .ok_or_else(|| format!("Package not found: {}", package))?;
+
+        // 2. dumpsys 单包详情（一次调用拿到全部字段）
+        let (detail_out, _, _) =
+            execute_shell_command(&mut device, &format!("dumpsys package {}", package))?;
+
+        // 3. 逐行解析字段（部分字段缺失时保持默认值）
+        let mut version_name = String::new();
+        let mut version_code = String::new();
+        let mut is_enabled = true;
+        let mut installer_package = String::new();
+        let mut code_size: u64 = 0;
+        let mut data_size: Option<u64> = None;
+        let mut cache_size: Option<u64> = None;
+        let mut target_sdk = String::new();
+        let mut min_sdk = String::new();
+        let mut first_install_time = String::new();
+        let mut last_update_time = String::new();
+        let mut uid = String::new();
+
+        for line in detail_out.lines() {
+            let trimmed = line.trim();
+            if let Some(val) = trimmed.strip_prefix("versionName=") {
+                version_name = val.to_string();
+            } else if let Some(rest) = trimmed.strip_prefix("versionCode=") {
+                // versionCode=123 minSdk=21 targetSdk=34
+                version_code = rest.split_whitespace().next().unwrap_or("").to_string();
+                for token in rest.split_whitespace() {
+                    if let Some(v) = token.strip_prefix("minSdk=") {
+                        min_sdk = v.to_string();
+                    } else if let Some(v) = token.strip_prefix("targetSdk=") {
+                        target_sdk = v.to_string();
+                    }
+                }
+            } else if let Some(val) = trimmed.strip_prefix("enabled=") {
+                // enabled=1 或 enabled=2 (disabled)
+                is_enabled = val.starts_with('1') || val.starts_with('0');
+            } else if let Some(val) = trimmed.strip_prefix("installerPackageName=") {
+                installer_package = val.to_string();
+            } else if let Some(val) = trimmed.strip_prefix("codeSize=") {
+                code_size = val.trim().parse().unwrap_or(0);
+            } else if let Some(val) = trimmed.strip_prefix("dataSize=") {
+                data_size = val.trim().parse().ok();
+            } else if let Some(val) = trimmed.strip_prefix("cacheSize=") {
+                cache_size = val.trim().parse().ok();
+            } else if let Some(val) = trimmed.strip_prefix("firstInstallTime=") {
+                first_install_time = val.trim_matches('"').to_string();
+            } else if let Some(val) = trimmed.strip_prefix("lastUpdateTime=") {
+                last_update_time = val.trim_matches('"').to_string();
+            } else if let Some(val) = trimmed.strip_prefix("userId=") {
+                uid = val.trim().to_string();
+            }
+        }
+
+        // 4. APK 本体总大小兜底：部分 ROM 的 dumpsys 无 codeSize 字段，
+        //    用 pm path 列出全部 APK 文件后逐文件 stat 累加（无需 root）
+        if code_size == 0 {
+            let size_cmd = format!(
+                "pm path {} | sed 's/^package://' | xargs stat -c %s 2>/dev/null | awk '{{s+=$1}} END {{print s+0}}'",
+                package
+            );
+            if let Ok((size_out, _, _)) = execute_shell_command(&mut device, &size_cmd) {
+                code_size = size_out.trim().parse().unwrap_or(0);
+            }
+        }
+        
+        // 5. 系统应用判定：优先 SYSTEM flag，其次 pm -s 集合与路径兑底
+        let mut system_set: HashSet<String> = HashSet::new();
+        if let Ok((sys_out, _, _)) = execute_shell_command(&mut device, "pm list packages -s") {
+            system_set = parse_package_names(&sys_out).into_iter().collect();
+        }
+        let is_system = parse_system_flag(&detail_out).unwrap_or_else(|| {
+            system_set.contains(&package)
+                || apk_path.starts_with("/system/")
+                || apk_path.starts_with("/vendor/")
+                || apk_path.starts_with("/product/")
+                || apk_path.starts_with("/oem/")
+        });
+
+        // 应用名：与列表一致，取包名最后一段
+        let app_name = package
+            .split('.')
+            .last()
+            .unwrap_or(&package)
+            .to_string();
+
+        Ok(AppDetail {
+            package_name: package.clone(),
+            app_name,
+            version_name,
+            version_code,
+            is_system,
+            is_enabled,
+            apk_path,
+            installer_package,
+            code_size,
+            data_size,
+            cache_size,
+            target_sdk,
+            min_sdk,
+            first_install_time,
+            last_update_time,
+            uid,
+        })
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
