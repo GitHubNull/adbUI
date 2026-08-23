@@ -58,7 +58,7 @@ export function useBattery() {
   }
 
   // ============================================
-  // 电池模拟（电量 / 温度 / 充电状态）
+  // 电池管理（电量 / 温度 / 充电状态）
   // ============================================
 
   async function simulate(
@@ -82,7 +82,7 @@ export function useBattery() {
       battery.value.simulating = true;
     }
     simulating.value = true;
-    return { stdout: '(Mock) 电池模拟已应用', stderr: '', exit_code: 0 };
+    return { stdout: '(Mock) 电池管理已应用', stderr: '', exit_code: 0 };
   }
 
   // ============================================

@@ -52,7 +52,7 @@ async function applySimulate() {
       status: simStatus.value,
     });
     simulating.value = true;
-    emit('toast', '电池模拟已应用', 'success');
+    emit('toast', '电池管理已应用', 'success');
   } catch (e) {
     emit('toast', String(e), 'error');
   }
@@ -77,7 +77,7 @@ async function onReset() {
     <div class="toolbar">
       <h2 class="page-title">
         <i class="pi pi-battery page-icon"></i>
-        电池模拟
+        电池管理
       </h2>
       <Button icon="pi pi-refresh" text :loading="loading" @click="load" />
     </div>

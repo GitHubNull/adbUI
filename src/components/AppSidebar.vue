@@ -17,7 +17,7 @@ const navItems: NavItem[] = [
   { label: '性能监控', icon: 'pi pi-chart-line', view: 'perf' },
   { label: '任务中心', icon: 'pi pi-check-circle', view: 'tasks' },
   { label: '显示调节', icon: 'pi pi-desktop', view: 'display' },
-  { label: '电池模拟', icon: 'pi pi-bolt', view: 'battery' },
+  { label: '电池管理', icon: 'pi pi-bolt', view: 'battery' },
   { label: '自动化脚本', icon: 'pi pi-code', view: 'scripts' },
 ];
 
@@ -97,8 +97,8 @@ function navigate(view: string) {
   width: 220px;
   height: 100%;
   min-height: 0;
-  background: var(--surface-card);
-  border-right: 1px solid var(--surface-200);
+  background: var(--p-surface-card);
+  border-right: 1px solid var(--p-surface-200);
   transition: width 0.3s ease;
   flex-shrink: 0;
 }
@@ -112,14 +112,14 @@ function navigate(view: string) {
   align-items: center;
   justify-content: space-between;
   padding: 1rem;
-  border-bottom: 1px solid var(--surface-200);
+  border-bottom: 1px solid var(--p-surface-200);
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--primary-color);
+  color: var(--p-primary-color);
 }
 
 .logo-icon {
@@ -134,7 +134,7 @@ function navigate(view: string) {
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--text-color);
+  color: var(--p-text-color);
 }
 
 .collapse-btn {
@@ -161,7 +161,7 @@ function navigate(view: string) {
   border-radius: 6px;
   border: none;
   background: transparent;
-  color: var(--text-color-secondary);
+  color: var(--p-text-muted-color);
   cursor: pointer;
   transition: all 0.2s ease;
   width: 100%;
@@ -171,13 +171,13 @@ function navigate(view: string) {
 }
 
 .nav-item:hover {
-  background: var(--surface-hover);
-  color: var(--text-color);
+  background: var(--p-surface-100);
+  color: var(--p-text-color);
 }
 
 .nav-item.active {
-  background: var(--primary-color);
-  color: var(--primary-color-text);
+  background: var(--p-primary-color);
+  color: var(--p-primary-contrast-color);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   font-weight: 600;
 }
@@ -324,13 +324,13 @@ function navigate(view: string) {
   width: 4px;
   height: 60%;
   min-height: 20px;
-  background: var(--primary-color-text);
+  background: var(--p-primary-contrast-color);
   border-radius: 0 3px 3px 0;
   opacity: 0.9;
 }
 
 .nav-item.active .nav-icon {
-  color: var(--primary-color-text);
+  color: var(--p-primary-contrast-color);
 }
 
 .nav-icon {
@@ -348,7 +348,7 @@ function navigate(view: string) {
 
 .sidebar-footer {
   padding: 0.75rem 0.5rem;
-  border-top: 1px solid var(--surface-200);
+  border-top: 1px solid var(--p-surface-200);
   flex-shrink: 0;
 }
 
@@ -362,7 +362,7 @@ function navigate(view: string) {
 }
 
 .sidebar-nav::-webkit-scrollbar-thumb {
-  background: var(--surface-300);
+  background: var(--p-surface-300);
   border-radius: 2px;
 }
 </style>

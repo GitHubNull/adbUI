@@ -11,7 +11,7 @@
   justify-content: space-between;
   align-items: center;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--surface-200);
+  border-bottom: 1px solid var(--p-surface-200);
   flex-wrap: wrap;
   gap: 1rem;
 }
@@ -35,11 +35,11 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: var(--text-color);
+  color: var(--p-text-color);
 }
 
 .page-icon {
-  color: var(--primary-color);
+  color: var(--p-primary-color);
   font-size: 1.5rem;
 }
 
@@ -47,10 +47,15 @@
   width: 200px;
 }
 
+/* 应用列表区块：卡片化边框，与工具栏形成清晰层级边界 */
 .app-list-panel {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  border: 1px solid var(--p-surface-200);
+  border-radius: 8px;
+  background: var(--p-content-background);
+  padding: 0.25rem;
 }
 
 .app-table {
@@ -88,19 +93,19 @@
   justify-content: center;
   padding: 4rem 2rem;
   text-align: center;
-  color: var(--text-color-secondary);
+  color: var(--p-text-muted-color);
 }
 
 .empty-icon {
   font-size: 4rem;
   margin-bottom: 1rem;
-  color: var(--surface-400);
+  color: var(--p-surface-400);
 }
 
 .empty-state h3 {
   margin: 0 0 0.5rem;
   font-size: 1.25rem;
-  color: var(--text-color);
+  color: var(--p-text-color);
 }
 
 .empty-state p {

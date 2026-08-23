@@ -62,100 +62,104 @@ async function onDisconnectDevice(device: DeviceInfo) {
 
 <template>
   <div class="app-layout">
-    <AppSidebar @navigate="onNavigate" />
+    <div class="app-body">
+      <AppSidebar @navigate="onNavigate" />
 
-    <main class="main-content">
-      <div class="view-container">
-      <DeviceManager
-        v-if="currentView === 'devices'"
-        :devices="devices"
-        :selected-device="selectedDevice"
-        :device-detail="deviceDetail"
-        :detail-loading="detailLoading"
-        @select="selectDevice"
-        @refresh="refreshDevices"
-        @disconnect="onDisconnectDevice"
-        @toast="showToast"
-      />
+      <main class="main-content">
+        <div class="view-container">
+          <DeviceManager
+            v-if="currentView === 'devices'"
+            :devices="devices"
+            :selected-device="selectedDevice"
+            :device-detail="deviceDetail"
+            :detail-loading="detailLoading"
+            @select="selectDevice"
+            @refresh="refreshDevices"
+            @disconnect="onDisconnectDevice"
+            @toast="showToast"
+          />
 
-      <AppManager
-        v-else-if="currentView === 'apps'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <AppManager
+            v-else-if="currentView === 'apps'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <FileManager
-        v-else-if="currentView === 'files'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <FileManager
+            v-else-if="currentView === 'files'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <TaskCenter
-        v-else-if="currentView === 'tasks'"
-      />
+          <TaskCenter
+            v-else-if="currentView === 'tasks'"
+          />
 
-      <DisplaySettings
-        v-else-if="currentView === 'display'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <DisplaySettings
+            v-else-if="currentView === 'display'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <BatterySimulator
-        v-else-if="currentView === 'battery'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <BatterySimulator
+            v-else-if="currentView === 'battery'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <ScriptAutomation
-        v-else-if="currentView === 'scripts'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <ScriptAutomation
+            v-else-if="currentView === 'scripts'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <LogViewer
-        v-else-if="currentView === 'logs'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <LogViewer
+            v-else-if="currentView === 'logs'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <ShellTerminal
-        v-else-if="currentView === 'shell'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <ShellTerminal
+            v-else-if="currentView === 'shell'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <ScreenshotRecorder
-        v-else-if="currentView === 'screenshots'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <ScreenshotRecorder
+            v-else-if="currentView === 'screenshots'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <PerformanceMonitor
-        v-else-if="currentView === 'perf'"
-        :selected-device="selectedDevice"
-        @toast="showToast"
-      />
+          <PerformanceMonitor
+            v-else-if="currentView === 'perf'"
+            :selected-device="selectedDevice"
+            @toast="showToast"
+          />
 
-      <Settings
-        v-else-if="currentView === 'settings'"
-        @toast="showToast"
-      />
+          <Settings
+            v-else-if="currentView === 'settings'"
+            @toast="showToast"
+          />
 
-      <div v-else class="placeholder-view">
-        <i class="pi pi-construction placeholder-icon"></i>
-        <h2>{{ currentView }}</h2>
-        <p>功能开发中，敬请期待...</p>
-      </div>
+          <div v-else class="placeholder-view">
+            <i class="pi pi-construction placeholder-icon"></i>
+            <h2>{{ currentView }}</h2>
+            <p>功能开发中，敬请期待...</p>
+          </div>
+        </div>
+      </main>
     </div>
 
-    <!-- 底部状态栏：刷新动画 + 功能特性状态 -->
+    <!-- 底部状态栏：占满整个底部横向宽度（含侧边栏下方区域） -->
     <AppStatusBar
       :current-view="currentView"
       :online-count="onlineCount"
       :total-count="totalCount"
       :tasks="tasks"
+      :selected-device="selectedDevice"
+      :devices="devices"
     />
-  </main>
 
     <!-- Toast -->
     <Toast />
@@ -170,9 +174,18 @@ async function onDisconnectDevice(device: DeviceInfo) {
   box-sizing: border-box;
 }
 
+/* 纵向布局：app-body（侧边栏 + 主内容）在上，状态栏全宽在下 */
 .app-layout {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 

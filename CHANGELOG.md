@@ -5,6 +5,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.13.2] - 2026-08-23
+
+### Fixed
+
+- 修复 PrimeVue 4 下旧版 CSS 变量（`--surface-*` / `--text-color*` / `--green-500` 等）静默失效导致边框、背景、文字颜色不显示：全部迁移为 `--p-*` 前缀新变量（App、侧边栏、状态栏、应用列表、设备管理、电池页等）
+
+### Changed
+
+- App 布局重构：新增 `.app-body` 包装层承载侧边栏与主内容
+- “电池模拟”更名为“电池管理”（页面标题、composable 注释与 Mock 文案）
+
 ## [0.13.1] - 2026-08-23
 
 ### Fixed
