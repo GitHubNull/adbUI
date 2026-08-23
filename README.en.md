@@ -14,31 +14,31 @@ adbUI is a cross-platform ADB (Android Debug Bridge) UI desktop application buil
   <img src="img/adbui_icon.svg" alt="adbUI Icon" width="128" height="128"/>
 </div>
 
-adbUI currently offers **16 feature modules**:
+adbUI currently offers **12 feature modules** (11 feature pages + Settings):
 
-- **Device Management**: Automatically detects and polls (3-second interval) connected Android devices, with USB / WiFi connection type recognition. Displays brand, model, Android version, SDK version, build number, battery level, and more.
-- **App Management**: View all installed apps with filtering by All / User / System. Supports uninstall, force stop, clear data, freeze/unfreeze, extract APK, install APK. Batch uninstall and batch install via task framework.
-- **File Manager**: Browse device file system with directory navigation. Supports uploading (push) files to device and downloading (pull) files to local machine.
-- **Log Viewer**: Real-time capture of device logcat output with level filtering (Verbose / Debug / Info / Warn / Error / Fatal).
-- **Shell Terminal**: Interactive ADB Shell command execution with command history, up/down arrow navigation, and error output highlighting.
-- **Screenshot & Recorder**: Device screenshot preview and local save (via system dialog, PNG format). Screen recording start/stop (may be restricted on Android 16+ unrooted devices due to SELinux).
-- **Performance Monitor**: Real-time display of CPU usage, memory used/total, device temperature. Process list showing CPU and memory usage per process.
-- **Command History**: Record all commands executed via Shell Terminal in this session, displaying output, exit code, and timestamp. One-click clear.
+- **Device Management**: Real-time device status detection via WebSocket push (auto fallback to 5-second polling when unavailable), with USB / WiFi connection type recognition. Displays brand, model, Android version, SDK version, build number, battery level, and more. Built-in wireless connection dialog (QR pairing / manual IP:port / mDNS scan) and WiFi device disconnect. Device detail panel can expand a full device info report (aggregated getprop + dumpsys) with JSON export.
+- **App Management**: View all installed apps with filtering by All / User / System. Supports uninstall, force stop, clear data, freeze/unfreeze, extract APK, install APK. Batch uninstall and batch install via task framework. Automatically extracts and displays app icons (on-device dex extractor, no root needed, local disk cache). Double-click an app for details (installer, size, SDK, etc.).
+- **File Manager**: Browse device file system with directory navigation and breadcrumb path. Supports uploading (push) files to device and downloading (pull) files to local machine. File type filtering (image/video/audio/document/archive/APK). Double-click image files to preview and zoom (within 10MB).
+- **Log Viewer**: Real-time capture of device logcat output with filtering by log level (Verbose / Debug / Info / Warn / Error / Fatal), Tag, PID, plus text search. Supports pause and clear.
+- **Shell Terminal**: Interactive ADB Shell command execution with command history, up/down arrow navigation, and error output highlighting. Built-in command library drawer (category browsing, bookmarking, custom commands) and command history drawer (search, rerun, copy, clear).
+- **Screenshot & Recorder**: Device screenshot preview and local save (via system dialog, PNG format). Auto-fit zoom preview (phone frame mockup, persistent zoom toggle). Screen recording start/stop (may be restricted on Android 16+ unrooted devices due to SELinux).
+- **Performance Monitor**: Real-time display of CPU usage (with history sparkline), memory used/total, device temperature. Process list showing CPU and memory usage per process.
 - **Task Center**: Batch operation (batch install, batch uninstall) progress tracking and management. Real-time progress, cancel task, clear completed tasks.
-- **Device Info Report**: Aggregate `getprop` and `dumpsys` output for complete device information.
-- **Display Settings**: View and modify screen resolution, density (DPI), overscan parameters. Automatic rollback on failure. Reset to factory defaults.
-- **Battery Simulator**: View real battery status. Simulate battery level, temperature, charging state. Restore real battery.
-- **Device Control**: Reboot device to system / recovery / bootloader / fastboot mode. Simulate screen tap, swipe, physical buttons, text input.
-- **Script Automation**: Multi-line ADB command script execution with `loop` / `end` syntax. Line-level progress display and mid-way stop. Script import/export support.
-- **Command Library**: Built-in common ADB command templates. Bookmark, add, edit, delete custom commands. Data persisted via localStorage.
-- **Settings**: Theme switching (light/dark), ADB command timeout, device list polling interval. Settings persisted via localStorage.
+- **Display Settings**: View and modify screen resolution, density (DPI), overscan parameters. Built-in common resolution/density presets. Automatic rollback on failure. Reset to factory defaults. Adjustable system parameters (animation speed, font scale, screen lock timeout).
+- **Battery Management**: View real battery status. Simulate battery level, temperature, charging state. One-click restore of real battery.
+- **Script Automation**: Multi-line ADB command script execution with `loop` / `end` syntax. Line-level progress display and mid-way stop. Script import/export support. Built-in input simulation (tap/long-press/swipe/keyevent/text with coordinate validation) and device reboot (normal/recovery/bootloader with confirmation dialog).
+- **Settings**: Theme switching (light/dark), ADB command timeout, device polling interval, app icon cache directory configuration. Settings persisted via localStorage.
+
+Additionally, a bottom **status bar** shows the WebSocket sync status (realtime / polling fallback), online device count with USB / WiFi statistics, running task count, and more.
 
 ## Tech Stack
 
 - **Frontend**: Vue 3 + TypeScript + Vite 6 + PrimeVue 4 + primeicons + @tauri-apps/plugin-dialog + @tauri-apps/plugin-opener
 - **Backend**: Tauri 2 (Rust) + tokio async runtime + adb_client 3.2
 - **ADB Communication**: The backend ADB communication module uses the mature Rust open-source library [cocool97/adb_client](https://github.com/cocool97/adb_client) for low-level interaction, improving stability and performance.
-- **Other Dependencies**: serde / serde_json (serialization), base64 (screenshot encoding), image (screenshot processing)
+- **Real-time Communication**: tokio-tungstenite + futures-util (WebSocket real-time device status push)
+- **Wireless Connection**: qrcode + rand (QR pairing), mdns-sd (LAN mDNS device scanning)
+- **Other Dependencies**: serde / serde_json (serialization), base64 (screenshot encoding), image (screenshot processing), zip (icon cache packaging)
 
 > Note: The backend communicates with the ADB service directly via the `adb_client` library. **No separate adb command-line tool installation is required** on your machine.
 
@@ -50,14 +50,15 @@ The frontend UI design references the HTML/CSS/JS prototype in the [`ref/adbUITo
 
 ```
 ├── src/                    # Frontend source (Vue 3 + TypeScript)
-│   ├── components/         # Shared components (e.g. AppSidebar.vue)
-│   ├── composables/        # Composables (16 total, organized by module)
+│   ├── components/         # Shared components (AppSidebar / AppStatusBar and per-module sub-components)
+│   ├── composables/        # Composables (19 total, organized by module)
 │   ├── types/              # TypeScript type definitions (mirroring Rust structs)
-│   └── views/              # Page views (16 feature modules)
+│   └── views/              # Page views (12 in use, plus 4 legacy files of merged modules)
 ├── src-tauri/              # Tauri backend (Rust)
 │   └── src/
-│       ├── adb.rs          # ADB communication module (Tauri Commands, 40+)
+│       ├── adb/            # ADB communication module (mod.rs entry + 15 functional sub-modules, 50+ commands)
 │       ├── task.rs         # Task framework (batch operation progress tracking)
+│       ├── websocket.rs    # WebSocket real-time notification service (device status push)
 │       └── lib.rs          # App entry and command registration
 ├── ref/                    # Reference prototype (UI design, read-only)
 ├── doc/                    # Project documentation (see documentation index below)
@@ -92,7 +93,7 @@ pnpm dev
 # Build frontend (includes vue-tsc type checking)
 pnpm build
 
-# Build desktop app (generates deb package)
+# Build desktop app (generates deb etc. on Linux; CI produces deb / AppImage / msi / dmg per platform)
 pnpm tauri build
 ```
 

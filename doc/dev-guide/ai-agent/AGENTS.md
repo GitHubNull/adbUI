@@ -14,15 +14,16 @@ Tauri Backend (Rust) + Vue Frontend (TypeScript)，通过 Tauri `invoke` 通信�
 
 ```
 Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
-   useDevices.ts                     adb.rs
+   useDevices.ts                     adb/ 模块目录 (device/apps/files/...)
    useApps.ts                        task.rs
-   ...                               lib.rs (命令注册)
+   ...                               websocket.rs (WebSocket 推送)
+                                     lib.rs (命令注册)
 ```
 
-- **后端**：`src-tauri/src/adb.rs` 定义 `DeviceInfo` / `DeviceDetail` / `AdbResult` 等 `serde::Serialize` 模型，并实现 40+ 个 `#[tauri::command]`；`task.rs` 提供任务框架（批量操作进度跟踪）；`lib.rs` 通过 `generate_handler!` 注册命令。ADB 底层交互采用 Rust 库 `adb_client`（见 README 技术栈章节）。
-- **前端**：`src/composables/useDevices.ts` 是设备相关的核心组合式函数（3 秒轮询、详情获取、命令执行），通过 `isTauri()` 检测运行环境——Tauri 内调用 `invoke`，浏览器中自动降级为 mock 数据，方便纯前端调试。
+- **后端**：`src-tauri/src/adb/` 目录按功能划分为 15 个子模块（device / apps / app_icons / files / batch / m2 / m2_commands / m2_tests / logs / screenshot / performance / history / report / models / helpers），定义 `DeviceInfo` / `DeviceDetail` / `AdbResult` 等 `serde::Serialize` 模型并实现 50+ 个 `#[tauri::command]`，通过 `mod.rs` 统一 re-export；`task.rs` 提供任务框架（批量操作进度跟踪）；`websocket.rs` 提供本地 WebSocket 实时通知服务（设备状态变化推送）；`lib.rs` 通过 `generate_handler!` 注册命令。ADB 底层交互采用 Rust 库 `adb_client`（见 README 技术栈章节）。
+- **前端**：`src/composables/useDevices.ts` 是设备相关的核心组合式函数（WebSocket 实时同步 + 5 秒降级轮询、详情获取、命令执行、无线连接），通过 `isTauri()` 检测运行环境——Tauri 内调用 `invoke`，浏览器中自动降级为 mock 数据，方便纯前端调试。
 - **类型**：`src/types/device.ts` 中的 TypeScript 类型与 Rust 端 `Serialize` 结构保持字段一致，改动后端模型时需同步。
-- **事件**：后端通过 `Emitter` 发送 `task-progress`（批量任务进度）和 `script-progress`（脚本执行进度）事件到前端。
+- **事件**：后端通过 `Emitter` 发送 `task-progress`（批量任务进度）和 `script-progress`（脚本执行进度）事件；通过 `websocket.rs` 启动的本地 WebSocket 服务推送 `device_changed`（设备连接/断开/状态变化）事件，前端 `useWebSocket.ts` 单例客户端订阅，不可用时自动降级为轮询。
 
 ## 完整命令清单
 
@@ -36,6 +37,23 @@ Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
 | `get_device_detail` | `device_id: String -> DeviceDetail` | 获取设备详细信息 |
 | `execute_adb` | `device_id, command -> AdbResult` | 执行 ADB shell 命令 |
 
+### 无线连接
+
+| 命令 | 签名 | 说明 |
+|------|------|------|
+| `connect_device` | `ip, port -> AdbResult` | 连接无线设备（IP:端口） |
+| `disconnect_device` | `ip, port -> AdbResult` | 断开无线设备（IP:端口） |
+| `disconnect_device_by_id` | `device_id -> AdbResult` | 按设备 ID 断开设备 |
+| `scan_network_devices` | `() -> Vec<NetworkDevice>` | 扫描局域网 ADB 设备（mDNS） |
+| `generate_pairing_qr` | `() -> QrPairingInfo` | 生成扫码配对二维码与配对码 |
+| `wait_and_pair_device` | `service_name, password, timeout_secs -> String` | 等待手机扫码完成 mDNS 配对并连接 |
+
+### WebSocket 实时通知
+
+| 命令 | 签名 | 说明 |
+|------|------|------|
+| `get_websocket_port` | `() -> u16` | 获取本地 WebSocket 服务端口（前端连接后订阅 `device_changed` 事件） |
+
 ### 应用管理
 
 | 命令 | 签名 | 说明 |
@@ -48,6 +66,8 @@ Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
 | `unfreeze_app` | `device_id, package -> AdbResult` | 解冻应用 |
 | `extract_apk` | `device_id, package, dest_path -> AdbResult` | 提取 APK |
 | `install_apk` | `device_id, local_path -> AdbResult` | 安装 APK |
+| `get_app_icons` | `device_id, cache_dir? -> AppIconEntry` | 批量提取应用图标（设备端 dex 提取器，zip 打包返回） |
+| `get_app_detail` | `device_id, package -> AppDetail` | 获取应用详情（安装来源/大小/SDK 等） |
 
 ### 文件管理
 
@@ -56,6 +76,7 @@ Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
 | `list_files` | `device_id, path -> Vec<FileItem>` | 列出目录内容 |
 | `pull_file` | `device_id, remote_path, local_path -> AdbResult` | 下载文件 |
 | `push_file` | `device_id, local_path, remote_path -> AdbResult` | 上传文件 |
+| `read_file_base64` | `device_id, path -> String` | 读取文件为 base64（10MB 限制，图片预览用） |
 
 ### 任务框架
 
@@ -92,7 +113,7 @@ Vue Frontend (src/)  --invoke-->  Rust Backend (src-tauri/src/)
 
 | 命令 | 签名 | 说明 |
 |------|------|------|
-| `get_device_logs` | `device_id, level?, limit? -> Vec<LogEntry>` | 获取日志 |
+| `get_device_logs` | `device_id -> String` | 获取日志（logcat -d 快照，级别/Tag/PID/文本过滤由前端完成） |
 
 ### 截图录屏
 
@@ -140,14 +161,15 @@ pnpm tauri build
 
 ```
 ├── src/                    # 前端源码 (Vue 3 + TypeScript)
-│   ├── components/         # 通用组件
-│   ├── composables/        # 组合式函数（16 个，按模块划分）
+│   ├── components/         # 通用组件（含 AppSidebar / AppStatusBar 与各模块子组件）
+│   ├── composables/        # 组合式函数（19 个，按模块划分）
 │   ├── types/              # TS 类型定义（device.ts 集中定义）
-│   └── views/              # 页面视图（16 个）
+│   └── views/              # 页面视图（12 个在用；CommandHistoryView 等 4 个遗留文件未被 App.vue 引用）
 ├── src-tauri/              # Tauri 后端 (Rust)
 │   └── src/
-│       ├── adb.rs          # ADB 通信模块 (Tauri Commands, 40+)
+│       ├── adb/            # ADB 通信模块（15 个功能子模块 + mod.rs，50+ 命令）
 │       ├── task.rs         # 任务框架（进度、取消、状态管理）
+│       ├── websocket.rs    # WebSocket 实时通知服务（device_changed 推送）
 │       └── lib.rs          # 应用入口与命令注册
 ├── ref/                    # 参考原型（UI 设计稿，只读不改）
 ├── doc/                    # 项目文档（设计文档、规划等）
@@ -159,7 +181,7 @@ pnpm tauri build
 
 ### Rust (src-tauri/)
 
-- ADB 相关命令统一放在 `adb.rs`，任务相关放在 `task.rs`
+- ADB 相关命令按功能放在 `adb/` 目录下对应模块文件（如应用相关放 `apps.rs`），任务相关放在 `task.rs`，WebSocket 推送相关放在 `websocket.rs`
 - 数据模型使用 `#[derive(Serialize)]`，`#[tauri::command]` 函数命名 `snake_case`
 - 新增命令后必须在 `lib.rs` 的 `generate_handler!` 中注册
 - 错误处理统一返回 `Result<_, String>`，用 `map_err` 转为可读信息，避免直接 `unwrap()`
@@ -246,7 +268,7 @@ pub async fn my_command(device_id: String) -> Result<MyResult, String> {
 
 | 步骤 | 操作 | 文件 |
 |------|------|------|
-| 1 | 定义模型与 `#[tauri::command]` | `src-tauri/src/adb.rs` |
+| 1 | 定义模型与 `#[tauri::command]` | `src-tauri/src/adb/` 对应模块文件（如 `apps.rs`） |
 | 2 | 在 `generate_handler!` 中注册 | `src-tauri/src/lib.rs` |
 | 3 | 添加 TypeScript 类型 | `src/types/device.ts` |
 | 4 | 在 composable 中添加 invoke 调用并保留 mock 分支 | `src/composables/useXxx.ts` |
@@ -273,10 +295,11 @@ const navItems = [
 
 | 任务 | 步骤 |
 | --- | --- |
-| 新增后端命令 | 1. `adb.rs` 定义模型与 `#[tauri::command]` 2. `lib.rs` 注册 3. `src/types/device.ts` 添加对应 TS 类型 4. composable 中添加 `invoke` 调用并保留 mock 分支 5. 视图中集成 |
+| 新增后端命令 | 1. `adb/` 对应模块文件定义模型与 `#[tauri::command]` 2. `lib.rs` 注册 3. `src/types/device.ts` 添加对应 TS 类型 4. composable 中添加 `invoke` 调用并保留 mock 分支 5. 视图中集成 |
 | 修改界面 | 视图在 `src/views/`，侧边栏在 `src/components/AppSidebar.vue`，设备数据流经 `useDevices` |
 | 新增功能模块 | 参考 `App.vue` 的 `currentView` 视图切换模式，同步侧边栏导航项，创建对应 composable |
-| 调整 ADB 交互 | 只改 `src-tauri/src/adb.rs`（底层库调用），前端无感知 |
+| 调整 ADB 交互 | 只改 `src-tauri/src/adb/` 对应模块（底层库调用），前端无感知 |
+| 新增实时数据源 | 后端 `websocket.rs` 推送事件，前端 `useWebSocket` 订阅并保留降级轮询分支 |
 
 ## 已知陷阱
 
@@ -286,7 +309,7 @@ const navItems = [
 
 **根因**：adb_client shell_command 在 v1 协议下返回 `None` 作为 exit code，代码中默认填充 0。
 
-**修复模式**：以 stdout/stderr 内容判断结果，而非依赖 exit_code。参见 `adb.rs` 中相关命令的实现。
+**修复模式**：以 stdout/stderr 内容判断结果，而非依赖 exit_code。参见 `adb/` 目录中相关命令的实现。
 
 **历史**：v0.3.1 修复了此问题，涉及批量卸载、命令执行等场景。
 
