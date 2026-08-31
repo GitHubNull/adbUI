@@ -240,6 +240,68 @@
   gap: 0.5rem;
 }
 
+/* 报告区：刷新 / 导出工具栏 */
+.report-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* 报告为空 / 加载失败的友好提示 */
+.report-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--p-text-muted-color);
+}
+
+.report-empty-icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--p-surface-400);
+}
+
+.report-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+  word-break: break-all;
+}
+
+/* 分节无数据时的提示文本 */
+.empty-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+}
+
+/* 导出格式选择对话框 */
+.export-hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+}
+
+.export-format-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.export-format-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.export-format-item label {
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
 @media (max-width: 1024px) {
   .content-grid {
     grid-template-columns: 1fr;

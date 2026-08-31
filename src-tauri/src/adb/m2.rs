@@ -21,6 +21,30 @@ pub struct BatteryState {
     pub temperature: i32,  // 温度，单位 0.1°C（350 表示 35.0°C）
     pub status: i32,       // 2=充电中 3=未充电 4=不充电 5=已充满
     pub simulating: bool,  // 是否处于模拟状态
+    pub health: Option<i32>,       // 健康度 1=未知 2=良好 3=过热 ...
+    pub voltage: Option<i32>,      // 电压，单位 mV
+    pub technology: Option<String>, // 电池技术（如 Li-ion）
+}
+
+/// 硬件信息（CPU / 内存 / 存储）
+#[derive(Serialize, Clone, Debug)]
+pub struct HardwareInfo {
+    pub cpu_hardware: String,       // 硬件平台（ro.hardware）
+    pub cpu_cores: i32,             // CPU 核心数
+    pub cpu_abi: String,            // CPU ABI
+    pub memory_total_kb: i64,       // 总内存（KB）
+    pub memory_available_kb: i64,   // 可用内存（KB）
+    pub storage_total_kb: i64,      // /data 存储总量（KB）
+    pub storage_available_kb: i64,  // /data 存储可用（KB）
+}
+
+/// 网络信息（设备端接口 / IP / MAC）
+#[derive(Serialize, Clone, Debug)]
+pub struct NetworkInfo {
+    pub interface: String,              // 接口名（如 wlan0）
+    pub ip_address: Option<String>,     // IPv4 地址
+    pub mac_address: Option<String>,    // MAC 地址
+    pub connection_type: String,        // "usb" 或 "wifi"（按 device_id 是否含 ":" 判断）
 }
 
 /// 设备信息报告（getprop + dumpsys 聚合）
@@ -37,6 +61,8 @@ pub struct DeviceReport {
     pub serial: String,
     pub battery: Option<BatteryState>,
     pub display: Option<DisplayState>,
+    pub hardware: Option<HardwareInfo>,
+    pub network: Option<NetworkInfo>,
 }
 
 // ============================================
@@ -99,11 +125,14 @@ pub(crate) fn parse_overscan(output: &str) -> Option<[i32; 4]> {
     None
 }
 
-/// 解析 `dumpsys battery` 输出，提取 level / temperature / status
+/// 解析 `dumpsys battery` 输出，提取 level / temperature / status / health / voltage / technology
 pub(crate) fn parse_battery(output: &str) -> Option<BatteryState> {
     let mut level: Option<i32> = None;
     let mut temperature: Option<i32> = None;
     let mut status: Option<i32> = None;
+    let mut health: Option<i32> = None;
+    let mut voltage: Option<i32> = None;
+    let mut technology: Option<String> = None;
 
     for line in output.lines() {
         let t = line.trim();
@@ -113,6 +142,15 @@ pub(crate) fn parse_battery(output: &str) -> Option<BatteryState> {
             temperature = v.trim().parse::<i32>().ok();
         } else if let Some(v) = t.strip_prefix("status:") {
             status = v.trim().parse::<i32>().ok();
+        } else if let Some(v) = t.strip_prefix("health:") {
+            health = v.trim().parse::<i32>().ok();
+        } else if let Some(v) = t.strip_prefix("voltage:") {
+            voltage = v.trim().parse::<i32>().ok();
+        } else if let Some(v) = t.strip_prefix("technology:") {
+            let s = v.trim();
+            if !s.is_empty() {
+                technology = Some(s.to_string());
+            }
         }
     }
 
@@ -122,9 +160,91 @@ pub(crate) fn parse_battery(output: &str) -> Option<BatteryState> {
             temperature: t,
             status: s,
             simulating: false,
+            health,
+            voltage,
+            technology,
         }),
         _ => None,
     }
+}
+
+/// 解析 `/proc/cpuinfo` 输出，统计 `processor` 行数得到核心数；无效时返回 0 表示未知
+pub(crate) fn parse_cpu_cores(output: &str) -> i32 {
+    output
+        .lines()
+        .filter(|line| line.trim_start().starts_with("processor"))
+        .count() as i32
+}
+
+/// 解析 `/proc/meminfo` 输出，返回 (MemTotal KB, MemAvailable KB)；缺失项为 0 表示未知
+pub(crate) fn parse_meminfo(output: &str) -> (i64, i64) {
+    let mut total: i64 = 0;
+    let mut available: i64 = 0;
+    for line in output.lines() {
+        let t = line.trim();
+        let target = if t.starts_with("MemTotal:") {
+            &mut total
+        } else if t.starts_with("MemAvailable:") {
+            &mut available
+        } else {
+            continue;
+        };
+        // 值形如 "11793780 kB"
+        if let Some(num) = t.split_whitespace().nth(1) {
+            if let Ok(n) = num.parse::<i64>() {
+                *target = n;
+            }
+        }
+    }
+    (total, available)
+}
+
+/// 解析 `df -k /data` 输出，返回 (总量 KB, 可用 KB)
+/// 输出形如：
+/// Filesystem           1K-blocks    Used Available Use% Mounted on
+/// /dev/block/...       247658496 ...  ...      ..% /data
+pub(crate) fn parse_df_data(output: &str) -> Option<(i64, i64)> {
+    for line in output.lines() {
+        let t = line.trim();
+        let fields: Vec<&str> = t.split_whitespace().collect();
+        // 数据行：文件系统 + 5 个数值 + 挂载点，挂载点以 /data 结尾（或整行即数据行）
+        if fields.len() >= 6 {
+            let mounted = fields[fields.len() - 1];
+            if mounted.starts_with("/data") {
+                let total = fields[1].parse::<i64>().ok()?;
+                let available = fields[3].parse::<i64>().ok()?;
+                return Some((total, available));
+            }
+        }
+    }
+    None
+}
+
+/// 解析 `ip addr show <iface>` 输出，返回 (IPv4 地址, MAC 地址)
+/// 输出形如：
+/// 12: wlan0: <BROADCAST,...> mtu 1500 ...
+///     link/ether a1:b2:c3:d4:e5:f6 brd ...
+///     inet 192.168.1.10/24 brd ...
+pub(crate) fn parse_ip_addr(output: &str) -> (Option<String>, Option<String>) {
+    let mut ip: Option<String> = None;
+    let mut mac: Option<String> = None;
+    for line in output.lines() {
+        let t = line.trim();
+        if let Some(v) = t.strip_prefix("inet ") {
+            // "192.168.1.10/24 brd ..." 取第一段并去掉掩码
+            if let Some(addr) = v.split_whitespace().next() {
+                let addr = addr.split('/').next().unwrap_or(addr);
+                if addr.contains('.') {
+                    ip = Some(addr.to_string());
+                }
+            }
+        } else if let Some(v) = t.strip_prefix("link/ether ") {
+            if let Some(addr) = v.split_whitespace().next() {
+                mac = Some(addr.to_string());
+            }
+        }
+    }
+    (ip, mac)
 }
 
 // ============================================

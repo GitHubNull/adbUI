@@ -9,7 +9,7 @@ use adb::{
     get_app_detail, get_app_icons, get_battery_state, get_command_history, get_device_detail,
     get_device_logs, get_device_report, get_display_state, get_performance_data, install_apk,
     list_apps, list_devices, list_files, pull_file, push_file, read_file_base64, reboot_device,
-    reset_display, save_screenshot, scan_network_devices, send_input, set_display,
+    reset_display, save_report_file, save_screenshot, scan_network_devices, send_input, set_display,
     set_system_param, spawn_device_monitor, start_screen_record, stop_screen_record,
     take_screenshot, unfreeze_app, uninstall_app, wait_and_pair_device,
 };
@@ -78,6 +78,7 @@ pub fn run() {
             send_input,
             execute_script,
             get_device_report,
+            save_report_file,
             // 日志查看
             get_device_logs,
             // 截图录屏

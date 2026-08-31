@@ -1,6 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useDeviceReport } from '../composables/useDeviceReport';
+import {
+  REPORT_FORMATS,
+  batteryStatusLabel,
+  batteryHealthLabel,
+  kbToGb,
+  temperatureLabel,
+  voltageLabel,
+  downloadReport,
+  saveReportToDir,
+  isTauriEnv,
+  type ReportFormat,
+} from '../composables/deviceReportExport';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import type { DeviceInfo, DeviceDetail } from '../types/device';
 import WirelessConnectDialog from '../components/device-manager/WirelessConnectDialog.vue';
 
@@ -50,7 +63,7 @@ function onDeviceConnected(deviceId: string) {
 }
 
 // ============ 设备信息报告（从 DeviceInfoReport 合并） ============
-const { report, loading: reportLoading, fetchReport, exportReport } = useDeviceReport();
+const { report, loading: reportLoading, error: reportError, fetchReport } = useDeviceReport();
 const showReport = ref(false);
 
 async function loadReport() {
@@ -71,21 +84,65 @@ function toggleReport() {
   }
 }
 
-function onExportReport() {
-  const content = exportReport();
-  const blob = new Blob([content], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `device-report-${report.value?.serial || 'unknown'}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  emit('toast', '设备报告已导出', 'success');
+// ============ 报告导出（支持 JSON / Markdown / HTML / TXT 多选 + 目录选择） ============
+const showExportDialog = ref(false);
+const selectedFormats = ref<ReportFormat[]>(REPORT_FORMATS.map((f) => f.value));
+const exporting = ref(false);
+
+function openExportDialog() {
+  if (!report.value) return;
+  if (selectedFormats.value.length === 0) {
+    selectedFormats.value = REPORT_FORMATS.map((f) => f.value);
+  }
+  showExportDialog.value = true;
 }
 
-function batteryStatusLabel(s?: number): string {
-  const map: Record<number, string> = { 2: '充电中', 3: '未充电', 4: '不充电', 5: '已充满' };
-  return s !== undefined ? map[s] || `状态码 ${s}` : '-';
+async function onExportReports() {
+  if (!report.value || selectedFormats.value.length === 0 || exporting.value) return;
+  const formats = [...selectedFormats.value];
+  const names = formats
+    .map((v) => REPORT_FORMATS.find((f) => f.value === v)?.label)
+    .filter(Boolean)
+    .join(' / ');
+
+  if (isTauriEnv()) {
+    // 桌面端：弹出目录选择对话框，多格式文件写入所选目录
+    showExportDialog.value = false;
+    let dir: string | null = null;
+    try {
+      dir = (await openDialog({
+        directory: true,
+        multiple: false,
+        title: '选择报告导出目录',
+      })) as string | null;
+    } catch (e) {
+      emit('toast', `打开目录选择对话框失败：${String(e)}`, 'error');
+      return;
+    }
+    if (!dir) {
+      emit('toast', '已取消导出', 'info');
+      return;
+    }
+    exporting.value = true;
+    try {
+      for (const format of formats) {
+        await saveReportToDir(report.value, format, dir);
+      }
+      emit('toast', `已导出 ${formats.length} 份报告（${names}）到 ${dir}`, 'success');
+    } catch (e) {
+      emit('toast', `导出失败：${String(e)}`, 'error');
+    } finally {
+      exporting.value = false;
+    }
+    return;
+  }
+
+  // 浏览器 Mock 环境：直接触发下载（浏览器无法选择目录）
+  for (const format of formats) {
+    downloadReport(report.value, format);
+  }
+  emit('toast', `已导出 ${formats.length} 份报告（${names}）`, 'success');
+  showExportDialog.value = false;
 }
 
 const onlineCount = computed(() => props.devices.filter(d => d.status === 'Online').length);
@@ -302,12 +359,38 @@ function getConnectionIcon(connection: string): string {
 
           <!-- 设备信息报告（从 DeviceInfoReport 合并） -->
           <template v-if="showReport">
+            <div class="report-toolbar">
+              <Button
+                icon="pi pi-refresh"
+                label="刷新报告"
+                text
+                size="small"
+                :loading="reportLoading"
+                @click="loadReport"
+              />
+              <Button
+                icon="pi pi-download"
+                label="导出报告"
+                text
+                size="small"
+                :disabled="!report"
+                @click="openExportDialog"
+              />
+            </div>
+
             <div v-if="reportLoading" class="detail-loading">
               <ProgressSpinner style="width: 32px; height: 32px" />
               <span>加载报告中...</span>
             </div>
 
-            <template v-else-if="report">
+            <!-- 报告为空的友好提示 -->
+            <div v-else-if="!report" class="report-empty">
+              <i class="pi pi-exclamation-circle report-empty-icon"></i>
+              <p v-if="reportError">报告加载失败：{{ reportError }}</p>
+              <p v-else>报告数据为空，点击“刷新报告”重试</p>
+            </div>
+
+            <template v-else>
               <div class="detail-section">
                 <h4>系统信息</h4>
                 <div class="detail-grid">
@@ -340,14 +423,47 @@ function getConnectionIcon(connection: string): string {
                     <span class="detail-value">{{ report.device }}</span>
                   </div>
                   <div class="detail-item">
-                    <span class="detail-label">CPU ABI</span>
-                    <span class="detail-value">{{ report.cpu_abi }}</span>
-                  </div>
-                  <div class="detail-item">
                     <span class="detail-label">序列号</span>
                     <span class="detail-value font-mono">{{ report.serial }}</span>
                   </div>
                 </div>
+              </div>
+
+              <Divider />
+
+              <div class="detail-section">
+                <h4>硬件信息</h4>
+                <div v-if="report.hardware" class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">硬件平台</span>
+                    <span class="detail-value">{{ report.hardware.cpu_hardware || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">CPU 核心数</span>
+                    <span class="detail-value">{{ report.hardware.cpu_cores || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">CPU ABI</span>
+                    <span class="detail-value font-mono">{{ report.hardware.cpu_abi || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">总内存</span>
+                    <span class="detail-value">{{ kbToGb(report.hardware.memory_total_kb) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">可用内存</span>
+                    <span class="detail-value">{{ kbToGb(report.hardware.memory_available_kb) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">存储总量</span>
+                    <span class="detail-value">{{ kbToGb(report.hardware.storage_total_kb) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">存储可用</span>
+                    <span class="detail-value">{{ kbToGb(report.hardware.storage_available_kb) }}</span>
+                  </div>
+                </div>
+                <p v-else class="empty-text">无法读取硬件信息</p>
               </div>
 
               <Divider />
@@ -361,14 +477,51 @@ function getConnectionIcon(connection: string): string {
                   </div>
                   <div class="detail-item">
                     <span class="detail-label">温度</span>
-                    <span class="detail-value">{{ (report.battery.temperature / 10).toFixed(1) }}°C</span>
+                    <span class="detail-value">{{ temperatureLabel(report.battery.temperature) }}</span>
                   </div>
                   <div class="detail-item">
                     <span class="detail-label">充电状态</span>
                     <span class="detail-value">{{ batteryStatusLabel(report.battery.status) }}</span>
                   </div>
+                  <div class="detail-item">
+                    <span class="detail-label">健康度</span>
+                    <span class="detail-value">{{ batteryHealthLabel(report.battery.health) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">电压</span>
+                    <span class="detail-value">{{ voltageLabel(report.battery.voltage) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">电池技术</span>
+                    <span class="detail-value">{{ report.battery.technology || '-' }}</span>
+                  </div>
                 </div>
                 <p v-else class="empty-text">无法读取电池信息</p>
+              </div>
+
+              <Divider />
+
+              <div class="detail-section">
+                <h4>网络信息</h4>
+                <div v-if="report.network" class="detail-grid">
+                  <div class="detail-item">
+                    <span class="detail-label">连接方式</span>
+                    <span class="detail-value">{{ selectedDevice?.connection || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">网络接口</span>
+                    <span class="detail-value font-mono">{{ report.network.interface }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">IP 地址</span>
+                    <span class="detail-value font-mono">{{ report.network.ip_address || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">MAC 地址</span>
+                    <span class="detail-value font-mono">{{ report.network.mac_address || '-' }}</span>
+                  </div>
+                </div>
+                <p v-else class="empty-text">无法读取网络信息</p>
               </div>
 
               <Divider />
@@ -391,18 +544,6 @@ function getConnectionIcon(connection: string): string {
                 </div>
                 <p v-else class="empty-text">无法读取显示信息</p>
               </div>
-
-              <Divider />
-
-              <div class="detail-section">
-                <Button
-                  label="导出报告"
-                  icon="pi pi-download"
-                  text
-                  size="small"
-                  @click="onExportReport"
-                />
-              </div>
             </template>
           </template>
         </div>
@@ -415,6 +556,35 @@ function getConnectionIcon(connection: string): string {
       @connected="onDeviceConnected"
       @toast="(msg, sev) => emit('toast', msg, sev)"
     />
+
+    <!-- 报告导出格式选择对话框 -->
+    <Dialog
+      v-model:visible="showExportDialog"
+      modal
+      header="导出设备报告"
+      :style="{ width: '380px' }"
+    >
+      <p class="export-hint">选择要导出的格式（可多选，同时生成多个文件）；确认后选择保存目录：</p>
+      <div class="export-format-list">
+        <div v-for="fmt in REPORT_FORMATS" :key="fmt.value" class="export-format-item">
+          <Checkbox
+            v-model="selectedFormats"
+            :inputId="`export-fmt-${fmt.value}`"
+            :value="fmt.value"
+          />
+          <label :for="`export-fmt-${fmt.value}`">{{ fmt.label }}</label>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="取消" severity="secondary" text @click="showExportDialog = false" />
+        <Button
+          label="导出"
+          icon="pi pi-download"
+          :disabled="selectedFormats.length === 0"
+          @click="onExportReports"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 

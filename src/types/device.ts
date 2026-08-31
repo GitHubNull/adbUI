@@ -128,6 +128,28 @@ export interface BatteryState {
   temperature: number;  // 温度，单位 0.1°C
   status: number;       // 2=充电中 3=未充电 4=不充电 5=已充满
   simulating: boolean;  // 是否处于模拟状态
+  health?: number;       // 健康度 1=未知 2=良好 3=过热 4=过期 5=过压 6=电流过大 7=未指定
+  voltage?: number;      // 电压，单位 mV
+  technology?: string;   // 电池技术（如 Li-ion）
+}
+
+/** 硬件信息（CPU / 内存 / 存储，内存与存储单位 KB，0 表示未知） */
+export interface HardwareInfo {
+  cpu_hardware: string;       // 硬件平台（ro.hardware）
+  cpu_cores: number;          // CPU 核心数
+  cpu_abi: string;            // CPU ABI
+  memory_total_kb: number;    // 总内存（KB）
+  memory_available_kb: number;// 可用内存（KB）
+  storage_total_kb: number;   // /data 存储总量（KB）
+  storage_available_kb: number; // /data 存储可用（KB）
+}
+
+/** 网络信息（设备端接口 / IP / MAC） */
+export interface NetworkInfo {
+  interface: string;             // 接口名（如 wlan0）
+  ip_address: string | null;     // IPv4 地址
+  mac_address: string | null;    // MAC 地址
+  connection_type: string;       // "usb" 或 "wifi"
 }
 
 /** 重启模式 */
@@ -146,6 +168,8 @@ export interface DeviceReport {
   serial: string;
   battery: BatteryState | null;
   display: DisplayState | null;
+  hardware: HardwareInfo | null;
+  network: NetworkInfo | null;
 }
 
 /** 脚本执行进度事件负载 */

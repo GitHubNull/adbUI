@@ -5,6 +5,16 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.15.0] - 2026-09-01
+
+### Added
+
+- 设备信息报告增强：新增硬件信息（CPU 平台 / 核心数、内存、存储，单项采集失败不影响整体）与网络信息（wlan0 优先 eth0 回退，USB / WiFi 连接类型判定）
+- 设备报告多格式导出：JSON / Markdown / HTML（单文件）/ TXT 四种格式，后端新增 `save_report_file` 命令写盘，目录由系统对话框选择
+- 新增真机验证示例 `examples/real_report.rs`（`cargo run --example real_report -- <device_id>` 直接调用报告命令函数）
+- 设备详情面板合并展示完整设备信息报告，原独立“设备信息报告”页面移除
+- 新增 `HardwareInfo` / `NetworkInfo` 类型与 `deviceReportExport` 导出工具（含电池状态/健康度、容量、温度等中文标签映射）
+
 ## [0.14.0] - 2026-08-23
 
 ### Added
